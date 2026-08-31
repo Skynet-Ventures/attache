@@ -239,7 +239,9 @@ struct StreamView: View {
                         if app.typing {
                             TypingIndicator()
                         }
-                        Color.clear.frame(height: 1).id("stream-bottom")
+                        // Clearance so the floating follow pill sits in empty
+                        // space (not against a card border) when pinned.
+                        Color.clear.frame(height: 40).id("stream-bottom")
                     } header: {
                         if let goal = app.goal, goal.active {
                             GoalBanner(goal: goal)
@@ -312,8 +314,10 @@ struct StreamView: View {
             }
             .overlay(alignment: .bottomTrailing) {
                 scrubNotice(proxy: proxy)
-                    // Breathing room so the pill never touches the composer
-                    // hairline or the screen edge.
+                    // Floats over scrolling content — the shadow makes an
+                    // overlap read as layered instead of touching.
+                    .shadow(color: .black.opacity(0.55), radius: 8, y: 2)
+                    // Breathing room off the composer hairline / screen edge.
                     .padding(.trailing, 12)
                     .padding(.bottom, 10)
             }
@@ -324,19 +328,21 @@ struct StreamView: View {
     @ViewBuilder
     private func scrubNotice(proxy: ScrollViewProxy) -> some View {
         if autoFollow {
+            // Same footprint as the "N new ↓" pill so the state toggle doesn't
+            // shrink into something that reads as a rendering glitch.
             Button {
                 disengageFollow()
             } label: {
-                HStack(spacing: 4) {
-                    Text("⌄").font(Theme.mono(11, .semibold))
+                HStack(spacing: 5) {
                     Text("following")
-                        .font(Theme.mono(9, .medium))
+                        .font(Theme.mono(10, .medium))
+                    Text("⌄")
+                        .font(Theme.mono(11, .semibold))
                 }
                 .foregroundStyle(Theme.text(0.55))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Theme.chip)
-                .clipShape(Capsule())
+                .padding(.horizontal, 11)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(Theme.chip))
                 .overlay(Capsule().stroke(Theme.hairlineStrong))
             }
             .buttonStyle(.plain)
