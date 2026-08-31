@@ -374,12 +374,21 @@ final class BridgeClient {
         heartbeatTask?.cancel()
         let task = task
         heartbeatTask = Task { [weak self] in
+            // One flaky ping must not bounce a healthy socket (it showed up
+            // as the header flapping to "connecting…" on stable WiFi) —
+            // only two consecutive misses tear the connection down.
+            var misses = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(25))
                 guard let self, !Task.isCancelled, self.task === task, let task else { return }
                 task.sendPing { error in
                     if error != nil {
-                        task.cancel(with: .abnormalClosure, reason: nil)
+                        misses += 1
+                        if misses >= 2 {
+                            task.cancel(with: .abnormalClosure, reason: nil)
+                        }
+                    } else {
+                        misses = 0
                     }
                 }
             }

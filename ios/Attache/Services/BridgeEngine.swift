@@ -45,6 +45,8 @@ final class BridgeEngine: Engine {
         guard let id = activeMachineId else { return nil }
         return machineClients[id]?.client
     }
+    /// Delays the header's "connecting…" so silent quick retries stay silent.
+    private var connectingDebounce: Task<Void, Never>?
     /// Reconnect target per machine — always scoped to the active machine.
     private var currentSummary: SessionSummary? {
         get { activeMachineId.flatMap { currentByMachine[$0] } }
@@ -142,9 +144,23 @@ final class BridgeEngine: Engine {
                 app.pairIssue = nil
                 app.machine.link = .offline
             case .connecting:
-                app.machine.link = .connecting
+                // Debounce: silent sub-second retries shouldn't flash
+                // "connecting…" in the header. Show it only if the state
+                // hasn't recovered within 2s.
+                self.connectingDebounce?.cancel()
+                self.connectingDebounce = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(2))
+                    guard let self, !Task.isCancelled, let app = self.app else { return }
+                    if machine.client.state == .connecting, machineId == self.activeMachineId {
+                        app.machine.link = .connecting
+                    }
+                }
             case .idle:
                 break
+            }
+            if state == .connected || state == .offline {
+                self.connectingDebounce?.cancel()
+                self.connectingDebounce = nil
             }
         }
         machine.client.onAuthFailure = { [weak self] kind in
