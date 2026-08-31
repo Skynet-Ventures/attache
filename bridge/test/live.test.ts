@@ -247,3 +247,41 @@ describe("LiveSession.getMessages (mocked omp process)", () => {
 		session.dispose();
 	});
 });
+
+describe("LiveSession.readTranscriptFromDisk (branched jsonl)", () => {
+	test("serves only the live leaf's parent chain, skipping abandoned branches", async () => {
+		const file = join(dir, "branched.jsonl");
+		const entry = (id: string, parentId: string | null, role: string, text: string) =>
+			JSON.stringify({ type: "message", id, parentId, message: { role, content: [{ type: "text", text }] } });
+		await Bun.write(
+			file,
+			[
+				entry("a", null, "user", "first prompt"),
+				entry("b", "a", "assistant", "first answer"),
+				// abandoned branch under b
+				entry("c1", "b", "user", "discarded prompt"),
+				entry("c2", "c1", "assistant", "discarded answer"),
+				// live branch, also under b
+				entry("d1", "b", "user", "kept prompt"),
+				JSON.stringify({ type: "custom", id: "d2", parentId: "d1", customType: "marker" }),
+				entry("d3", "d2", "assistant", "kept answer"),
+				'{"type":"message","id":"torn","parentId":"d3","message":', // torn tail mid-write
+			].join("\n"),
+		);
+		const proc = new FakeProc();
+		proc.respondTo("get_state", req => ({
+			type: "response",
+			id: String(req.id ?? "s"),
+			command: "get_state",
+			success: true,
+			data: { sessionFile: file, sessionId: "sess", model: { provider: "p", id: "m" } },
+		}));
+		const { session } = await makeSession(proc);
+		const result = await session.readTranscriptFromDisk();
+		const texts = (result.messages as Array<{ message: { content: Array<{ text: string }> } }>).map(
+			m => m.message.content[0]?.text,
+		);
+		expect(result.fromDisk).toBe(true);
+		expect(texts).toEqual(["first prompt", "first answer", "kept prompt", "kept answer"]);
+	});
+});

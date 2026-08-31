@@ -287,6 +287,11 @@ export class LiveSession {
 	 * pager refuses to run while the session is streaming (session_busy), but
 	 * the on-disk file is always readable — this keeps a freshly attached
 	 * client from staring at a blank transcript through a long turn.
+	 *
+	 * The jsonl is an append-only tree (entries carry `parentId`); after a
+	 * `branch`, abandoned-branch entries stay in the file. A linear scan
+	 * would interleave them into the transcript, so walk the parent chain up
+	 * from the newest entry (the live leaf) and render only that path.
 	 */
 	async readTranscriptFromDisk(maxMessages = 600): Promise<{ messages: unknown[]; fromDisk: true }> {
 		const file = this.state?.sessionFile;
@@ -297,19 +302,29 @@ export class LiveSession {
 		} catch {
 			return { messages: [], fromDisk: true };
 		}
-		const messages: unknown[] = [];
+		type DiskEntry = { type?: string; id?: string; parentId?: string | null; message?: unknown };
+		const byId = new Map<string, DiskEntry>();
+		let leaf: DiskEntry | null = null;
 		for (const line of text.split("\n")) {
-			if (!line.includes('"type":"message"')) continue;
+			if (!line.trim()) continue;
 			try {
-				const entry = JSON.parse(line) as { type?: string; id?: string; message?: unknown };
-				if (entry.type === "message" && entry.message) {
-					messages.push({ id: entry.id, message: entry.message });
-				}
+				const entry = JSON.parse(line) as DiskEntry;
+				if (!entry.id) continue;
+				byId.set(entry.id, entry);
+				leaf = entry; // last parseable entry = live leaf while streaming
 			} catch {
 				/* torn tail line mid-write — expected while streaming */
 			}
 		}
-		return { messages: messages.slice(-maxMessages), fromDisk: true };
+		const messages: unknown[] = [];
+		for (let cur = leaf; cur; cur = cur.parentId ? (byId.get(cur.parentId) ?? null) : null) {
+			if (cur.type === "message" && cur.message) {
+				messages.push({ id: cur.id, message: cur.message });
+			}
+			if (messages.length >= maxMessages) break;
+		}
+		messages.reverse();
+		return { messages, fromDisk: true };
 	}
 
 	/**
