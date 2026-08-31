@@ -312,6 +312,10 @@ struct StreamView: View {
             }
             .overlay(alignment: .bottomTrailing) {
                 scrubNotice(proxy: proxy)
+                    // Breathing room so the pill never touches the composer
+                    // hairline or the screen edge.
+                    .padding(.trailing, 12)
+                    .padding(.bottom, 10)
             }
         }
     }
@@ -386,14 +390,25 @@ struct StreamView: View {
                     attachmentStrip
                 }
                 HStack(spacing: 8) {
-                    Button {
-                        withAnimation(.easeOut(duration: 0.12)) {
-                            app.composerMode = app.composerMode.next
+                    // The ▾ promises a menu — deliver one instead of tap-cycling.
+                    Menu {
+                        ForEach(ComposerMode.allCases, id: \.self) { mode in
+                            Button {
+                                app.composerMode = mode
+                            } label: {
+                                if mode == app.composerMode {
+                                    Label(modeMenuLabel(mode), systemImage: "checkmark")
+                                } else {
+                                    Text(modeMenuLabel(mode))
+                                }
+                            }
                         }
                     } label: {
                         Text("\(app.composerMode.rawValue) ▾")
                             .font(Theme.mono(10, .semibold))
                             .foregroundStyle(Theme.accent)
+                            .lineLimit(1)
+                            .fixedSize()
                             .padding(.horizontal, 8)
                             .frame(height: 24)
                             .background(Theme.accent.opacity(0.14))
@@ -407,6 +422,8 @@ struct StreamView: View {
                         Text("@\(app.composerRole) ▾")
                             .font(Theme.mono(10, .medium))
                             .foregroundStyle(Theme.text(0.6))
+                            .lineLimit(1)
+                            .fixedSize()   // never wrap the ▾ under the text
                             .padding(.horizontal, 8)
                             .frame(height: 24)
                             .background(Theme.chip)
@@ -548,6 +565,15 @@ struct StreamView: View {
         }
         .background(Theme.composer)
         .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.hairline), alignment: .top)
+    }
+
+    private func modeMenuLabel(_ mode: ComposerMode) -> String {
+        switch mode {
+        case .chat: "Chat — normal turn"
+        case .plan: "Plan — read-only draft"
+        case .goal: "Goal — self-driving loop"
+        case .loop: "Loop — resubmit N times"
+        }
     }
 
     private var shortModelLabel: String {
