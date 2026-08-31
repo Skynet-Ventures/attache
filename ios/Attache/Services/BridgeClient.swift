@@ -80,6 +80,8 @@ final class BridgeClient {
     private var pending: [String: CheckedContinuation<JSONValue, Error>] = [:]
     private var reconnectAttempt = 0
     private var closed = false
+    private var heartbeatTask: Task<Void, Never>?
+    private var offlineGraceTask: Task<Void, Never>?
 
     var onEvent: ((String, JSONValue) -> Void)?
     var onStateChange: ((State) -> Void)?
@@ -120,6 +122,8 @@ final class BridgeClient {
 
     func close() {
         closed = true
+        heartbeatTask?.cancel()
+        offlineGraceTask?.cancel()
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
         state = .idle
@@ -127,7 +131,9 @@ final class BridgeClient {
 
     private func openSocket() {
         guard !closed, let url = URL(string: "ws://\(host)/ws?token=\(token)") else { return }
-        state = reconnectAttempt == 0 ? .connecting : .offline
+        // Stay in .connecting during silent retries; .offline (the red
+        // banner) only arrives via the grace timer below.
+        if state != .offline { state = .connecting }
         let task = URLSession.shared.webSocketTask(with: url)
         self.task = task
         task.resume()
@@ -137,10 +143,36 @@ final class BridgeClient {
             Task { @MainActor in
                 guard let self, self.task === task else { return }
                 if error == nil {
-                    self.state = .connected
-                    self.reconnectAttempt = 0
+                    self.markConnected()
                 } else {
                     self.scheduleReconnect()
+                }
+            }
+        }
+    }
+
+    private func markConnected() {
+        offlineGraceTask?.cancel()
+        offlineGraceTask = nil
+        state = .connected
+        reconnectAttempt = 0
+        startHeartbeat()
+    }
+
+    /// Keepalive: ping every 25s so neither the bridge's idle culling nor a
+    /// silently dead TCP path can leave a zombie connection. A failed ping
+    /// tears the socket down, which routes into the reconnect path.
+    private func startHeartbeat() {
+        heartbeatTask?.cancel()
+        let task = task
+        heartbeatTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(25))
+                guard let self, !Task.isCancelled, self.task === task, let task else { return }
+                task.sendPing { error in
+                    if error != nil {
+                        task.cancel(with: .abnormalClosure, reason: nil)
+                    }
                 }
             }
         }
@@ -167,10 +199,22 @@ final class BridgeClient {
 
     private func scheduleReconnect() {
         guard !closed else { return }
-        state = .offline
+        heartbeatTask?.cancel()
+        // Silent fast retries first — the red offline state only shows if we
+        // stay disconnected past the grace window (stops banner flapping on
+        // sub-second reconnects).
+        if state == .connected { state = .connecting }
+        if offlineGraceTask == nil {
+            offlineGraceTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(6))
+                guard let self, !Task.isCancelled else { return }
+                self.offlineGraceTask = nil
+                if self.state != .connected { self.state = .offline }
+            }
+        }
         let attempt = reconnectAttempt
         reconnectAttempt += 1
-        let delay = min(15.0, pow(1.6, Double(attempt)))
+        let delay = attempt == 0 ? 0.3 : min(15.0, pow(1.6, Double(attempt)))
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             guard let self, !self.closed else { return }
@@ -182,7 +226,7 @@ final class BridgeClient {
         guard let data = text.data(using: .utf8),
               let frame = try? JSONDecoder().decode(JSONValue.self, from: data),
               let type = frame["type"]?.stringValue else { return }
-        state = .connected
+        if state != .connected { markConnected() }
         if type == "result", let id = frame["id"]?.stringValue, let cont = pending.removeValue(forKey: id) {
             if frame["ok"]?.boolValue == true {
                 cont.resume(returning: frame["data"] ?? .null)

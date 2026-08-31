@@ -70,7 +70,10 @@ export class BridgeServer {
 				message: (ws, message) => void this.onMessage(ws, message),
 				close: ws => this.onClose(ws),
 				sendPings: true,
-				idleTimeout: 120,
+				// Max Bun allows. The app also heartbeats every 25s — a quietly
+				// reading client must never be culled as "idle" (it caused
+				// 2-minute offline/online flapping).
+				idleTimeout: 960,
 			},
 		});
 
