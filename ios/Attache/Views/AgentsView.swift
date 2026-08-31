@@ -104,6 +104,7 @@ struct AgentsView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .scrollDismissesKeyboard(.interactively)
                     .frame(maxHeight: 190)
                     .padding(.bottom, 10)
                     HStack(spacing: 8) {

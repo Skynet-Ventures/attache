@@ -101,6 +101,10 @@ struct StreamView: View {
                 .padding(.vertical, 12)
             }
             .defaultScrollAnchor(.bottom)
+            // Reading room: drag pushes the keyboard away interactively, and
+            // a tap on any non-interactive part of the stream drops it too.
+            .scrollDismissesKeyboard(.interactively)
+            .onTapGesture { composerFocused = false }
             .onChange(of: app.items.count) {
                 withAnimation(.easeOut(duration: 0.2)) {
                     proxy.scrollTo("stream-bottom", anchor: .bottom)
