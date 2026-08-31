@@ -368,6 +368,13 @@ final class BridgeEngine: Engine {
                 var payload: [String: Any] = [:]
                 if summary.live {
                     payload["sessionId"] = summary.id
+                    // Also send the stored path: if the bridge restarted and no
+                    // longer holds this live id, it resumes from disk instead of
+                    // failing (or, before the fix, spawning a blank session).
+                    if !summary.sessionPath.isEmpty {
+                        payload["sessionPath"] = summary.sessionPath
+                        payload["cwd"] = summary.cwd
+                    }
                 } else if !summary.sessionPath.isEmpty {
                     payload["sessionPath"] = summary.sessionPath
                     payload["cwd"] = summary.cwd
@@ -399,6 +406,10 @@ final class BridgeEngine: Engine {
             var payload: [String: Any] = [:]
             if let previousId {
                 payload["sessionId"] = previousId
+                if !summary.sessionPath.isEmpty {
+                    payload["sessionPath"] = summary.sessionPath
+                    payload["cwd"] = summary.cwd
+                }
             } else if !summary.sessionPath.isEmpty {
                 payload["sessionPath"] = summary.sessionPath
                 payload["cwd"] = summary.cwd

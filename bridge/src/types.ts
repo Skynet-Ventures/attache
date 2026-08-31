@@ -8,7 +8,13 @@
 export const PROTOCOL_VERSION = 1;
 
 /** Machine-readable error codes on bridge result frames. */
-export type ErrorCode = "protocol_mismatch" | "revoked" | "session_busy" | "stale_cursor" | "too_large";
+export type ErrorCode =
+	| "protocol_mismatch"
+	| "revoked"
+	| "session_busy"
+	| "stale_cursor"
+	| "too_large"
+	| "unknown_session";
 
 // ---------------------------------------------------------------------------
 // omp RPC wire types (subset we consume; see oh-my-pi docs/rpc.md)

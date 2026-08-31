@@ -324,37 +324,51 @@ export class BridgeServer {
 							: existingId?.startsWith("stored:")
 								? existingId.slice("stored:".length)
 								: undefined;
-					let cwd = typeof cmd.cwd === "string" && cmd.cwd.length > 0 ? cmd.cwd : process.env.HOME ?? "/";
-					if (cmd.scratch === true) {
-						// Scratch sessions land in one general directory so they
-						// group together instead of littering per-timestamp dirs.
-						cwd = join(process.env.HOME ?? "/", "scratch");
-						await mkdir(cwd, { recursive: true });
+					// A bare live-session id we don't hold (bridge restarted, or the
+					// session ended) must fail loudly — spawning a fresh session in
+					// $HOME here silently strands the client on a blank transcript.
+					if (existingId && !existingId.startsWith("stored:") && resume === undefined) {
+						throw new ProtocolError("unknown_session", `no live session ${existingId}`);
 					}
-					session = new LiveSession(cwd, this.rules, {
-						resume,
-						ompBin: this.opts.ompBin,
-						approvalTimeoutMs: this.bridgeConfig.approvalTimeoutSec * 1000,
-					});
-					const s = session;
-					session.onDispose = () => {
-						this.sessions.delete(s.id);
+					// Already resumed under another id (e.g. after a bridge restart)?
+					// Reuse it instead of spawning a second omp on the same file.
+					if (resume) {
+						const held = [...this.sessions.values()].find(s => s.snapshot?.sessionFile === resume);
+						if (held) session = held;
+					}
+					if (!session) {
+						let cwd = typeof cmd.cwd === "string" && cmd.cwd.length > 0 ? cmd.cwd : process.env.HOME ?? "/";
+						if (cmd.scratch === true) {
+							// Scratch sessions land in one general directory so they
+							// group together instead of littering per-timestamp dirs.
+							cwd = join(process.env.HOME ?? "/", "scratch");
+							await mkdir(cwd, { recursive: true });
+						}
+						session = new LiveSession(cwd, this.rules, {
+							resume,
+							ompBin: this.opts.ompBin,
+							approvalTimeoutMs: this.bridgeConfig.approvalTimeoutSec * 1000,
+						});
+						const s = session;
+						session.onDispose = () => {
+							this.sessions.delete(s.id);
+							this.broadcast({ type: "sessions_changed" });
+						};
+						// Session-level offline-notification hook — independent of
+						// any socket attachment so pushes work when nothing is
+						// attached (per-session gating happens inside maybePush).
+						session.subscribe(event => this.maybePush(event));
+						try {
+							await session.start();
+						} catch (err) {
+							// Startup failed after omp was spawned — don't leak the
+							// child process into the session listing.
+							session.kill();
+							throw err;
+						}
+						this.sessions.set(session.id, session);
 						this.broadcast({ type: "sessions_changed" });
-					};
-					// Session-level offline-notification hook — independent of
-					// any socket attachment so pushes work when nothing is
-					// attached (per-session gating happens inside maybePush).
-					session.subscribe(event => this.maybePush(event));
-					try {
-						await session.start();
-					} catch (err) {
-						// Startup failed after omp was spawned — don't leak the
-						// child process into the session listing.
-						session.kill();
-						throw err;
 					}
-					this.sessions.set(session.id, session);
-					this.broadcast({ type: "sessions_changed" });
 				}
 				this.attachSocket(ws, session);
 				// Push current pending approvals + state to the newly attached socket.
