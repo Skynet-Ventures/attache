@@ -158,7 +158,18 @@ struct ToolCardView: View {
                     .font(Theme.mono(11, .medium))
                     .lineLimit(1)
                 Spacer(minLength: 6)
-                if let add = tool.addCount, let del = tool.delCount {
+                if tool.running, ["hub", "task"].contains(tool.verb), !app.subagents.isEmpty {
+                    // A hub/task call blocks the primary while subagents work —
+                    // surface their liveness here and link to the hub.
+                    Button {
+                        if !app.path.contains(.agents) { app.path.append(.agents) }
+                    } label: {
+                        Text(subagentSummary)
+                            .font(Theme.mono(9.5, .medium))
+                            .foregroundStyle(Theme.accent)
+                    }
+                    .buttonStyle(.plain)
+                } else if let add = tool.addCount, let del = tool.delCount {
                     Text("+\(add)").font(Theme.mono(10, .medium)).foregroundStyle(Theme.success)
                     Text("−\(del)").font(Theme.mono(10, .medium)).foregroundStyle(Theme.danger)
                 } else if !tool.meta.isEmpty {
@@ -233,6 +244,13 @@ struct ToolCardView: View {
 
     /// Collapsed diff cards keep the hot hunk visible (like the prototype's
     /// edit card); everything shows when expanded.
+    private var subagentSummary: String {
+        let live = app.subagents.filter { $0.status == .live }.count
+        let done = app.subagents.filter { $0.status == .done }.count
+        if live > 0 { return "\(live) live · \(done) done ▸" }
+        return "\(done) done ▸"
+    }
+
     private var visibleLines: [DiffLine] {
         if expanded { return tool.detailLines }
         if tool.hasDiff {
