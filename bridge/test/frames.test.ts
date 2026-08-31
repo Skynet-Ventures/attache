@@ -34,6 +34,52 @@ describe("RpcFrameDecoder", () => {
 		const frames = d.push('{"type":"agent_end","messages":[]}\n');
 		expect(frames).toEqual([{ type: "agent_end", messages: [] }]);
 	});
+
+	const b64 = (s: string) => btoa(s);
+	const chunkLine = (chunkId: string, index: number, count: number, declared: number, data: string) =>
+		`${JSON.stringify({ type: "rpc_chunk", chunkId, index, count, byteLength: declared, data })}\n`;
+
+	test("rejects a duplicate chunk index mid-sequence", () => {
+		const d = new RpcFrameDecoder();
+		d.push(chunkLine("c1", 0, 2, 10, b64("0123456789")));
+		expect(d.push(chunkLine("c1", 0, 2, 10, b64("0123456789")))).toEqual([]);
+	});
+
+	test("rejects a chunk from a different sequence mid-walk", () => {
+		const d = new RpcFrameDecoder();
+		d.push(chunkLine("c1", 0, 2, 10, b64("0123456789")));
+		expect(d.push(chunkLine("c2", 1, 2, 10, b64("0123456789")))).toEqual([]);
+	});
+
+	test("rejects an index gap mid-sequence", () => {
+		const d = new RpcFrameDecoder();
+		d.push(chunkLine("c1", 0, 3, 15, b64("0123456789")));
+		expect(d.push(chunkLine("c1", 2, 3, 15, b64("01234")))).toEqual([]); // expected index 1
+	});
+
+	test("accepts a valid single-chunk sequence but rejects a byteLength mismatch", () => {
+		const payload = JSON.stringify({ type: "response", command: "ping", success: true });
+		const bytes = new TextEncoder().encode(payload);
+		const data = b64(String.fromCharCode(...bytes));
+		// Correct declared length → reassembled and parsed.
+		const ok = new RpcFrameDecoder();
+		expect(ok.push(chunkLine("c1", 0, 1, bytes.length, data))).toEqual([
+			{ type: "response", command: "ping", success: true },
+		]);
+		// Declared length differs from the actual payload → rejected per spec.
+		const bad = new RpcFrameDecoder();
+		expect(bad.push(chunkLine("c1", 0, 1, bytes.length + 1, data))).toEqual([]);
+	});
+
+	test("ignores a stray mid-sequence chunk with no open walk", () => {
+		const d = new RpcFrameDecoder();
+		expect(d.push(chunkLine("c1", 1, 2, 10, b64("0123456789")))).toEqual([]);
+	});
+
+	test("rejects an overly large declared reassembly", () => {
+		const d = new RpcFrameDecoder(16); // tiny ceiling
+		expect(d.push(chunkLine("c1", 0, 1, 100, b64("0123456789")))).toEqual([]);
+	});
 });
 
 describe("project grouping", () => {

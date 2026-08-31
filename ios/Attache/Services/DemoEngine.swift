@@ -15,6 +15,11 @@ final class DemoEngine: Engine {
             name: "devbox", link: .demo, ompVersion: "17.3.4", bridgeVersion: "0.1.0", liveSessionCount: 2
         )
         app.sessionId = "demo"
+        app.activeSummary = SessionSummary(
+            id: "demo", title: "Fix decoder memory leak", project: "pixeld",
+            cwd: "~/src/pixeld", sessionPath: "", updatedAt: Date(),
+            live: true, status: .running, shortId: "#9f31", machineId: "devbox", machineName: "devbox"
+        )
         app.sessionTitle = "Fix decoder memory leak"
         app.branchLabel = "⑂ fix/resize-pool"
         app.turnNo = 14
@@ -30,6 +35,8 @@ final class DemoEngine: Engine {
         app.focusedAgentId = "reviewer"
         app.plan = Self.initialPlan()
         app.roles = Self.initialRoles()
+        app.availableCommands = Self.demoCommands
+        app.hubFeed = Self.initialHubFeed()
         app.enabledModels = [
             "fireworks/deepseek-v4-flash", "x-ai/grok-4.5", "anthropic/claude-opus-4.6",
             "anthropic/claude-sonnet-4.5", "zai/glm-5.2",
@@ -60,19 +67,20 @@ final class DemoEngine: Engine {
     func refreshSessions() {
         guard let app else { return }
         let now = Date()
+        let tag = (machineId: "devbox", machineName: "devbox")
         var groups = [
             ProjectGroup(id: "auto:~/src/pixeld", name: "pixeld", cwd: "~/src/pixeld", custom: false, sessions: [
-                SessionSummary(id: "demo", title: "Fix decoder memory leak", project: "pixeld", cwd: "~/src/pixeld", sessionPath: "", updatedAt: now, live: true, status: .running, shortId: "#9f31"),
-                SessionSummary(id: "d2", title: "Batch export presets", project: "pixeld", cwd: "~/src/pixeld", sessionPath: "", updatedAt: now.addingTimeInterval(-7200), live: false, status: .done, shortId: "#31be"),
-                SessionSummary(id: "d3", title: "Investigate AVIF encode speed", project: "pixeld", cwd: "~/src/pixeld", sessionPath: "", updatedAt: now.addingTimeInterval(-86_400), live: false, status: .idle, shortId: "#c04d"),
-                SessionSummary(id: "d4", title: "⑂ leak fix — alt approach (branch)", project: "pixeld", cwd: "~/src/pixeld", sessionPath: "", updatedAt: now.addingTimeInterval(-10_800), live: false, status: .idle, shortId: "#b2e0"),
-            ]),
+                SessionSummary(id: "demo", title: "Fix decoder memory leak", project: "pixeld", cwd: "~/src/pixeld", sessionPath: "", updatedAt: now, live: true, status: .running, shortId: "#9f31", machineId: tag.machineId, machineName: tag.machineName),
+                SessionSummary(id: "d2", title: "Batch export presets", project: "pixeld", cwd: "~/src/pixeld", sessionPath: "", updatedAt: now.addingTimeInterval(-7200), live: false, status: .done, shortId: "#31be", machineId: tag.machineId, machineName: tag.machineName),
+                SessionSummary(id: "d3", title: "Investigate AVIF encode speed", project: "pixeld", cwd: "~/src/pixeld", sessionPath: "", updatedAt: now.addingTimeInterval(-86_400), live: false, status: .idle, shortId: "#c04d", machineId: tag.machineId, machineName: tag.machineName),
+                SessionSummary(id: "d4", title: "⑂ leak fix — alt approach (branch)", project: "pixeld", cwd: "~/src/pixeld", sessionPath: "", updatedAt: now.addingTimeInterval(-10_800), live: false, status: .idle, shortId: "#b2e0", machineId: tag.machineId, machineName: tag.machineName),
+            ], machineId: tag.machineId, machineName: tag.machineName),
             ProjectGroup(id: "auto:~/src/billing-api", name: "billing-api", cwd: "~/src/billing-api", custom: false, sessions: [
-                SessionSummary(id: "plan1", title: "Ship usage-based invoicing", project: "billing-api", cwd: "~/src/billing-api", sessionPath: "", updatedAt: now.addingTimeInterval(-720), live: true, status: .waiting, shortId: "#77ac"),
-            ]),
+                SessionSummary(id: "plan1", title: "Ship usage-based invoicing", project: "billing-api", cwd: "~/src/billing-api", sessionPath: "", updatedAt: now.addingTimeInterval(-720), live: true, status: .waiting, shortId: "#77ac", machineId: tag.machineId, machineName: tag.machineName),
+            ], machineId: tag.machineId, machineName: tag.machineName),
             ProjectGroup(id: "auto:~/src/omp-web", name: "omp-web", cwd: "~/src/omp-web", custom: false, sessions: [
-                SessionSummary(id: "d5", title: "Docs search relevance pass", project: "omp-web", cwd: "~/src/omp-web", sessionPath: "", updatedAt: now.addingTimeInterval(-2 * 86_400), live: false, status: .idle, shortId: "#5aa1"),
-            ]),
+                SessionSummary(id: "d5", title: "Docs search relevance pass", project: "omp-web", cwd: "~/src/omp-web", sessionPath: "", updatedAt: now.addingTimeInterval(-2 * 86_400), live: false, status: .idle, shortId: "#5aa1", machineId: tag.machineId, machineName: tag.machineName),
+            ], machineId: tag.machineId, machineName: tag.machineName),
         ]
         // Apply custom-project claims the same way the bridge does.
         var custom: [ProjectGroup] = customProjects.map {
@@ -181,12 +189,20 @@ final class DemoEngine: Engine {
     // MARK: Approvals
 
     func resolveApproval(id: String, verdict: Verdict) {
+        resolveApproval(id: id, verdict: verdict, scope: nil)
+    }
+
+    func resolveApproval(id: String, verdict: Verdict, scope: RuleScopeChoice?) {
         guard let app else { return }
         guard let idx = app.approvals.firstIndex(where: { $0.id == id }) else { return }
         switch verdict {
         case .allow: app.approvals[idx].status = .allowed
         case .allowAlways: app.approvals[idx].status = .always
         case .deny: app.approvals[idx].status = .denied
+        }
+        if verdict == .allowAlways {
+            let scopeLabel = scope?.label ?? "Everywhere"
+            app.append(.steer("rule added (always allow · \(scopeLabel))"))
         }
         // The inline stream card mirrors queue item q1.
         if id == "q1" {
@@ -226,6 +242,12 @@ final class DemoEngine: Engine {
 
     func advisorDismiss(itemId: String) {
         setAdvisorState(itemId: itemId, state: .dismissed)
+    }
+
+    func advisorElaborate(itemId: String) {
+        guard let app else { return }
+        app.append(.steer("steer: ask advisor to elaborate — defer Put() on error paths in renderThumb"))
+        reply("Elaborating: the cap alone doesn't fix the leak — the three Get() call sites that skip Put() on early returns still retain buffers. See cmd/loadgen/worker.go:141, batch.go:77, warm.go:19; a defer pool.Put(buf) in renderThumb covers all of them. Land the cap AND the defer together, then re-run the 5-minute load to prove RSS stays flat.", bump: 1)
     }
 
     private func setAdvisorState(itemId: String, state: AdvisorNoteModel.State) {
@@ -409,6 +431,39 @@ final class DemoEngine: Engine {
         app?.hindsightEnabled.toggle()
     }
 
+    // MARK: Session QoL (demo canned)
+
+    func renameSession(_ name: String) {
+        guard let app else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        app.sessionTitle = trimmed
+        app.append(.steer("session renamed → \(trimmed)"))
+    }
+
+    func fetchSessionStats() async -> [SessionStatRow] {
+        [
+            SessionStatRow(key: "sessionId", value: app?.sessionId ?? "demo"),
+            SessionStatRow(key: "totalMessages", value: "214"),
+            SessionStatRow(key: "userMessages", value: "38"),
+            SessionStatRow(key: "assistantMessages", value: "61"),
+            SessionStatRow(key: "toolCalls", value: "115"),
+            SessionStatRow(key: "tokens (cumulative)", value: "184_221"),
+            SessionStatRow(key: "cost", value: "3.84"),
+            SessionStatRow(key: "contextUsage", value: "tokens 132400 / window 200k · 66%"),
+        ]
+    }
+
+    func setFastMode(_ enabled: Bool) {
+        guard let app else { return }
+        app.fastModeActive = enabled
+        app.append(.steer(enabled ? "fast mode on — snappier turns" : "fast mode off"))
+    }
+
+    func removeQueuedPrompt(id: String) {
+        app?.items.removeAll { $0.id == id }
+    }
+
     // MARK: Goal
 
     func goalPause() {
@@ -445,6 +500,127 @@ final class DemoEngine: Engine {
         let all = app.projects.flatMap(\.sessions)
         if q.isEmpty { return all }
         return all.filter { $0.title.lowercased().contains(q) || $0.shortId.contains(q) }
+    }
+
+    // MARK: Post-beta roadmap (contracts A–I, demo canned)
+
+    func handoff(instructions: String?) async -> HandoffResult {
+        guard let app else { return HandoffResult(detail: "handoff.json", error: nil) }
+        app.append(.steer("✉ handoff complete — ~/.omp/handoffs/handoff-\(app.turnNo).json"))
+        if let notes = instructions, !notes.trimmingCharacters(in: .whitespaces).isEmpty {
+            app.append(.notice("handoff notes: \(notes)"))
+        }
+        return HandoffResult(detail: "handoff-\(app.turnNo).json", error: nil)
+    }
+
+    func newSession(parent: SessionSummary, instructions: String?) {
+        guard let app else { return }
+        app.items = []
+        app.subagents = []
+        app.sessionTitle = "⑂ from \(parent.title)"
+        app.branchLabel = parent.project
+        app.turnNo = 0
+        app.ctxPercent = 2
+        app.costUsd = 0
+        if let notes = instructions, !notes.trimmingCharacters(in: .whitespaces).isEmpty {
+            app.append(.notice("context: \(notes)"))
+        }
+        app.append(.steer("⑂ new session from \"\(parent.title)\" — original untouched"))
+        app.path.append(.stream)
+    }
+
+    func setQueueModes(
+        steeringMode: QueueSteeringMode,
+        followUpMode: QueueFollowUpMode,
+        interruptMode: QueueInterruptMode
+    ) {
+        guard let app else { return }
+        app.steeringMode = steeringMode
+        app.followUpMode = followUpMode
+        app.interruptMode = interruptMode
+        app.append(.steer("queue: steering \(steeringMode.label.lowercased()) · follow-ups \(followUpMode.label.lowercased()) · interrupt \(interruptMode.label.lowercased())"))
+    }
+
+    func exportTranscript() async throws -> String {
+        // A small but realistic standalone HTML transcript.
+        let title = app?.sessionTitle ?? "demo session"
+        let html = """
+        <!doctype html><html><head><meta charset="utf-8"><title>\(title) — transcript</title></head>
+        <body><h1>\(title)</h1><p>Export from Attaché demo data — \(app?.items.count ?? 0) messages.</p></body></html>
+        """
+        return Data(html.utf8).base64EncodedString()
+    }
+
+    func fetchCostSummary(days: Int) async -> CostSummaryModel? {
+        let now = Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        var daysList: [CostDay] = []
+        let samples: [(Double, Int, Int)] = [
+            (0.84, 812_000, 41_000), (1.12, 1_010_000, 62_000), (0.47, 441_000, 23_000),
+            (2.10, 1_820_000, 118_000), (1.63, 1_405_000, 97_000), (0.92, 760_000, 51_000),
+        ]
+        for i in stride(from: max(0, min(days, 30) - 1), through: 0, by: -1) {
+            let day = formatter.string(from: now.addingTimeInterval(-Double(i) * 86_400))
+            let s = samples[i % samples.count]
+            daysList.append(CostDay(
+                date: day, costUSD: s.0, tokensIn: s.1, tokensOut: s.2,
+                sessions: i % 3 == 0 ? 2 : 1
+            ))
+        }
+        return CostSummaryModel(
+            days: daysList,
+            byProject: [
+                CostProjectRow(projectId: nil, cwd: "~/src/pixeld", costUSD: 3.41, sessions: 4),
+                CostProjectRow(projectId: nil, cwd: "~/src/billing-api", costUSD: 2.10, sessions: 1),
+                CostProjectRow(projectId: nil, cwd: "~/src/omp-web", costUSD: 1.57, sessions: 2),
+                CostProjectRow(projectId: nil, cwd: "~/scratch", costUSD: 0.92, sessions: 6),
+            ]
+        )
+    }
+
+    func connectMachine(_ record: PairedMachineRecord) {
+        guard let app else { return }
+        app.pairedMachines.removeAll { $0.id == record.id }
+        app.pairedMachines.insert(
+            PairedMachine(
+                id: record.id, name: record.name, state: .online(latencyMs: 18),
+                detail: "tailscale · 18ms · omp 17.4.1", sessionsLabel: "0 sessions live", canWake: false
+            ),
+            at: 0
+        )
+        app.machine = MachineStatus(
+            name: record.name, link: .online(latencyMs: 18), ompVersion: "17.4.1", bridgeVersion: "0.1.0", liveSessionCount: 0
+        )
+        refreshSessions()
+    }
+
+    func removeMachine(id: String) {
+        guard let app else { return }
+        app.pairedMachines.removeAll { $0.id == id }
+        if let first = app.pairedMachines.first {
+            app.machine = MachineStatus(
+                name: first.name, link: .online(latencyMs: first.state == .online(latencyMs: 0) ? 12 : 18),
+                ompVersion: "17.3.4", bridgeVersion: "0.1.0", liveSessionCount: 0
+            )
+        }
+        refreshSessions()
+    }
+
+    func branchPoints(for summary: SessionSummary) async -> [BranchPoint] {
+        // Stored sessions in the demo expose their last turns as fork points.
+        [
+            BranchPoint(id: "e\(summary.id.prefix(4))-1", role: "user", preview: summary.title),
+            BranchPoint(id: "e\(summary.id.prefix(4))-2", role: "user", preview: "before the last edit"),
+        ]
+    }
+
+    func branchStored(_ summary: SessionSummary, entryId: String, preview: String) {
+        guard let app else { return }
+        app.sessionTitle = "⑂ \(summary.title)"
+        app.branchLabel = summary.project
+        app.path.append(.stream)
+        app.append(.steer("⑂ branched from stored session before \"\(String(preview.prefix(48)))\" · original untouched"))
     }
 
     // MARK: Seed data
@@ -495,7 +671,27 @@ final class DemoEngine: Engine {
                 command: "rm -rf tmp/profiles.old", diffLines: [],
                 reason: "clear stale pprof baselines before re-comparing"
             )), turn: 14),
+            ChatItem(kind: .approval(
+                selfDiffBearingApproval(id: "q4", sessionId: "demo", sessionTitle: "Fix decoder memory leak", source: "pixeld · 1m")
+            ), turn: 14),
         ]
+    }
+
+    /// A write approval whose command embeds a real multi-file unified diff —
+    /// exercises the diff review surface end to end in demo mode.
+    private static func selfDiffBearingApproval(
+        id: String, sessionId: String, sessionTitle: String, source: String
+    ) -> ApprovalModel {
+        var approval = ApprovalModel(
+            id: id, sessionId: sessionId, sessionTitle: sessionTitle,
+            tool: "write", risk: .medium, riskDetail: "MED · WRITE",
+            source: source, command: Self.demoApprovalDiff, diffLines: [],
+            reason: "apply leak-fix diff to internal/resize/ (pool.go + thumb.go)"
+        )
+        if let parsed = BridgeEngine.parseDiffBlob(Self.demoApprovalDiff) {
+            approval.diffLines = parsed.lines
+        }
+        return approval
     }
 
     private static func initialQueue() -> [ApprovalModel] {
@@ -522,6 +718,7 @@ final class DemoEngine: Engine {
                 command: nil, diffLines: [],
                 reason: "github.create_pr — \"invoicing: metered usage rollups\" → base main, draft"
             ),
+            selfDiffBearingApproval(id: "q4", sessionId: "demo", sessionTitle: "Fix decoder memory leak", source: "pixeld · 1m"),
         ]
     }
 
@@ -595,4 +792,87 @@ final class DemoEngine: Engine {
             RoleModel(name: "advisor", model: "grok-4.5", thinking: .high),
         ]
     }
+
+    /// Canned slash commands so the palette works in demo mode (the bridge
+    /// would normally forward omp's `available_commands_update`).
+    private static let demoCommands: [SlashCommand] = [
+        SlashCommand(name: "/plan", source: "builtin", aliases: ["/p"], summary: "draft a structured plan for review", hint: "<objective>"),
+        SlashCommand(name: "/goal", source: "builtin", summary: "pin an objective and work until proven", hint: "<objective>"),
+        SlashCommand(name: "/loop", source: "builtin", summary: "resubmit a prompt N times", hint: "<n> <prompt>"),
+        SlashCommand(name: "/compact", source: "builtin", summary: "snapcompact the context now"),
+        SlashCommand(name: "/resume", source: "builtin", summary: "open the session picker"),
+        SlashCommand(name: "/new", source: "builtin", summary: "start a new saved session"),
+        SlashCommand(name: "/agents", source: "builtin", summary: "open the agent hub"),
+        SlashCommand(name: "/handoff", source: "extension", summary: "hand the session off to another machine", hint: "<instructions?>", subcommands: [
+            SlashCommand(name: "/handoff to", source: "extension", summary: "hand off with no instructions"),
+            SlashCommand(name: "/handoff with", source: "extension", summary: "hand off with custom instructions", hint: "<instructions>"),
+        ]),
+    ]
+    
+    /// Canned Comms feed entries so the agents screen exercises the hub feed
+    /// rendering in demo mode (goal change highlighted, sender badges).
+    private static func initialHubFeed() -> [HubMessage] {
+        let now = Date()
+        return [
+            HubMessage(
+                kind: .message, sender: "librarian",
+                text: "Pool retention is GC-scoped; capping capacity at Put() is the canonical fix (runtime#23199).",
+                timestamp: now.addingTimeInterval(-310)
+            ),
+            HubMessage(
+                kind: .goal, sender: nil, text: "goal accepted",
+                goalObjective: "Fix decoder memory leak", goalStatus: "active",
+                timestamp: now.addingTimeInterval(-290)
+            ),
+            HubMessage(
+                kind: .message, sender: "reviewer",
+                text: "pool.go diff reviewed — no API breakage, but maxRetained is package-private; loadgen can't tune it.",
+                timestamp: now.addingTimeInterval(-120)
+            ),
+            HubMessage(
+                kind: .notice, sender: "omp", text: "context at 66% — auto compaction at 85%",
+                level: "info",
+                timestamp: now.addingTimeInterval(-60)
+            ),
+        ]
+    }
+
+    /// A multi-file unified diff embedded in an approval command, exactly as
+    /// omp's write-approval prompt can carry it.
+    static let demoApprovalDiff = """
+    diff --git a/internal/resize/pool.go b/internal/resize/pool.go
+    index 1f2a3b4..9c8d7e6 100644
+    --- a/internal/resize/pool.go
+    +++ b/internal/resize/pool.go
+    @@ -12,9 +12,16 @@ package resize
+     const maxRetained = 1 << 20 // 1 MiB
+    -New: func() any { return new(bytes.Buffer) },
+    +func makeBuffer() *bytes.Buffer { return new(bytes.Buffer) }
+    +
+    +func New() any { return makeBuffer() }
+     func Put(b *bytes.Buffer) {
+    +	if b.Cap() > maxRetained {
+    +		return // drop oversized bufs
+    +	}
+    +	bufPool.Put(b)
+    -	bufPool.Put(b)
+     }
+    diff --git a/internal/resize/thumb.go b/internal/resize/thumb.go
+    index 77a1b2c..d4e5f6a 100644
+    --- a/internal/resize/thumb.go
+    +++ b/internal/resize/thumb.go
+    @@ -86,7 +86,11 @@ func renderThumb(ctx context.Context) ([]byte, error) {
+     	buf := pool.Get()
+    +	defer pool.Put(buf)
+     	if err := decode(r, buf); err != nil {
+    -		return nil, err
+     	}
+     	return encode(buf)
+    @@ -101,6 +105,9 @@ func encode(buf *bytes.Buffer) ([]byte, error) {
+    +	scratch := buf.Bytes()
+    +	n := copy(out, scratch)
+    +	_ = n
+     	return out, nil
+     }
+    """
 }

@@ -15,7 +15,7 @@ network, with nothing relayed through anyone's cloud.
 ## How it works
 
 omp speaks a newline-delimited JSON RPC over stdio (`omp --mode rpc`) — it has
-no network server. Attaché therefore ships in two parts:
+no network server, so Attaché ships as:
 
 ```
 ┌─────────────┐   WebSocket (docs/protocol.md)  ┌────────────────┐  NDJSON stdio  ┌─────┐
@@ -28,6 +28,10 @@ no network server. Attaché therefore ships in two parts:
   scans omp's session store for the resume picker, intercepts approval prompts,
   keeps "always allow" rules, and exposes everything over an authenticated
   WebSocket.
+- **`relay/`** — an optional stateless Cloudflare Worker for lock-screen push
+  while the app is fully suspended. Deploy and configure it per
+  [`relay/README.md`](relay/README.md); the bridge then needs
+  `apnsRelayUrl` / `apnsRelayBearer` in `~/.attache/config.json`.
 - **`ios/`** — the SwiftUI app. Demo mode works with no machine at all
   ("Explore with demo data" on first launch).
 
@@ -44,6 +48,14 @@ bun run start          # prints the address + one-time pairing code
 On your phone: build & run `ios/Attache.xcodeproj` (see below), tap
 **Pair your first machine**, and enter the address and code the bridge printed.
 On a tailnet, use the machine's `100.x.y.z` address — the bridge lists it first.
+
+Device management on the bridge host: `attache-bridge devices` lists paired
+devices, `attache-bridge revoke <deviceId>` revokes one immediately (its live
+sessions close with result error code `revoked`).
+
+You can pair the app with several machines; each record keeps its own token
+and push registrations, and the app routes by the owning machine (see the
+Machines screen to pair, wake, or remove one).
 
 ### Building the app
 
@@ -78,8 +90,12 @@ your own team.
 | Demo mode (no machine needed; App Store review friendly) | ✅ |
 | Custom projects: group session directories under one name, synced via the bridge | ✅ |
 | Live Activity + Dynamic Island (session, status, context bar, approval chip) | ✅ (updates while the app runs) |
+| Home-screen widget (session status snapshot) | ✅ |
+| iPad split view (sessions sidebar + stream detail) | ✅ |
 | Auto re-attach + transcript backfill after reconnects (seq-gap detection) | ✅ |
 | Webhook push (ntfy-ready) configurable in Settings, with send-test | ✅ |
+| APNs push for fully-suspended delivery (bridge encryption + relay worker + NSE) | ✅ (self-host the relay, see `relay/README.md`) |
+| Multiple paired machines with per-machine tokens and routing | ✅ |
 | Extension dialogs (omp `ask`, select/confirm/input) answerable inline | ✅ |
 | Always-allow rules review/revoke screen | ✅ |
 | @role picker sets model+thinking; separate session model picker | ✅ |
@@ -87,14 +103,14 @@ your own team.
 | Branch sheet backed by real session entry ids | ✅ |
 | Dispatch a subagent from the agent hub | ✅ (routed via the primary agent) |
 
-Roadmap (see `docs/`): APNs push relay for fully-suspended delivery (also
-unlocks push-updated Live Activities), QR pairing, branch-from-turn UI wired
-to omp entry ids, wake-on-LAN, multi-machine switching.
+Roadmap (see `docs/`): push-updated Live Activities over the registered
+`liveactivity` push-to-start tokens, QR pairing.
 
 ## Repository layout
 
 ```
 bridge/     attache-bridge daemon (Bun + TypeScript)
+relay/      optional APNs relay (Cloudflare Worker) for suspended-app push
 ios/        SwiftUI app (XcodeGen project)
 docs/       protocol spec, architecture, notification design
 design/     original design handoff (pixel/behavior reference)
@@ -109,8 +125,8 @@ design/     original design handoff (pixel/behavior reference)
   `tailscale serve`.
 - "Always allow" rules live on the bridge (`~/.attache/rules.json`), are scoped
   to tool + command prefix, and are listable/revocable.
-- The bridge never talks to any third party. Webhook push (e.g. an ntfy topic)
-  is opt-in and off by default.
+- The bridge never talks to a third party unless configured. Webhook push
+  (e.g. an ntfy topic) and the APNs relay are both opt-in and off by default.
 
 ## Development
 

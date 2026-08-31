@@ -1,0 +1,18 @@
+# Attaché APNs relay — Cloudflare Worker.
+# See README.md for setup. Secrets are configured via `wrangler secret put`,
+# never committed here.
+name = "attache-apns-relay"
+main = "index.ts"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+# Public (non-secret) configuration.
+[vars]
+# The app's bundle identifier (must match the APNs-enabled App Store build).
+# The Attaché source tree builds io.skynetventures.attache; override to your
+# own if you self-build under a different team/bundle.
+APNS_TOPIC = "io.skynetventures.attache"
+
+# Production APNs endpoint. Use "api.sandbox.push.apple.com" while testing
+# with a development provisioning profile.
+APNS_ENDPOINT = "api.push.apple.com"

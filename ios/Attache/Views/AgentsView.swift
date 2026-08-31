@@ -11,14 +11,18 @@ struct AgentsView: View {
         VStack(spacing: 0) {
             header
             ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible())], spacing: 10) {
-                    ForEach(app.subagents) { agent in
-                        AgentTile(agent: agent, focused: app.focusedAgent?.id == agent.id)
-                            .onTapGesture { app.focusedAgentId = agent.id }
+                VStack(alignment: .leading, spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible())], spacing: 10) {
+                        ForEach(app.subagents) { agent in
+                            AgentTile(agent: agent, focused: app.focusedAgent?.id == agent.id)
+                                .onTapGesture { app.focusedAgentId = agent.id }
+                        }
                     }
+                    CommsFeedSection()
                 }
                 .padding(.horizontal, Theme.streamGutter)
                 .padding(.top, 12)
+                .padding(.bottom, 14)
             }
             focusedSheet
         }
@@ -255,5 +259,145 @@ private struct SubagentLineView: View {
             .font(Theme.mono(10.5))
             .lineSpacing(3)
         }
+    }
+}
+
+// MARK: - Comms feed (hub passthrough)
+
+/// Chronological hub feed surfaced under the agents screen: omp `irc_message`,
+/// `notice` and `goal_updated` events from the raw stream passthrough. Sender
+/// badges distinguish authors; goal changes are highlighted.
+struct CommsFeedSection: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("COMMS")
+                    .font(Theme.mono(9.5, .semibold))
+                    .tracking(1)
+                    .foregroundStyle(Theme.text(0.4))
+                Spacer()
+                Text("live passthrough")
+                    .font(Theme.mono(9))
+                    .foregroundStyle(Theme.textFaint)
+            }
+            .padding(.bottom, 7)
+            if app.hubFeed.isEmpty {
+                Text("no comms yet — hub messages, notices and goal changes land here")
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(Theme.textFaint)
+                    .padding(.vertical, 10)
+            } else {
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(app.hubFeed.suffix(50)) { message in
+                        CommsRow(message: message)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct CommsRow: View {
+    let message: HubMessage
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            badge
+            VStack(alignment: .leading, spacing: 2) {
+                if message.kind == .goal, let objective = message.goalObjective, !objective.isEmpty {
+                    Text(objective)
+                        .font(Theme.sans(11, .medium))
+                        .foregroundStyle(Theme.text(0.95))
+                        .lineLimit(2)
+                }
+                Text(message.text)
+                    .font(message.kind == .goal ? Theme.sans(11.5, .medium) : Theme.sans(11.5))
+                    .foregroundStyle(message.kind == .goal ? Theme.text(0.9) : Theme.text(0.7))
+                    .lineSpacing(2.5)
+                    .lineLimit(4)
+            }
+            Spacer(minLength: 6)
+            Text(age)
+                .font(Theme.mono(8.5))
+                .foregroundStyle(Theme.text(0.3))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(message.kind == .goal ? Theme.accent.opacity(0.08) : Theme.raisedAlt)
+        .clipShape(RoundedRectangle(cornerRadius: 9))
+        .overlay(
+            RoundedRectangle(cornerRadius: 9)
+                .stroke(message.kind == .goal ? Theme.accentBorderFaint : Theme.hairlineFaint)
+        )
+    }
+
+    @ViewBuilder
+    private var badge: some View {
+        switch message.kind {
+        case .message:
+            if let sender = message.sender {
+                Text(sender)
+                    .font(Theme.mono(9, .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(color(for: sender))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else {
+                Text("agent")
+                    .font(Theme.mono(9, .semibold))
+                    .foregroundStyle(Theme.text(0.5))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.14)))
+            }
+        case .goal:
+            Text("◎ GOAL")
+                .font(Theme.mono(9, .semibold))
+                .tracking(0.5)
+                .foregroundStyle(Theme.accent)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Theme.accentBorder))
+        case .notice:
+            Text(noticeSymbol)
+                .font(Theme.mono(10, .semibold))
+                .foregroundStyle(noticeColor)
+        }
+    }
+
+    private var noticeSymbol: String {
+        message.level == "error" ? "✕" : message.level == "warning" ? "!" : "◆"
+    }
+
+    private var noticeColor: Color {
+        switch message.level {
+        case "error": Theme.danger
+        case "warning": Theme.warning
+        default: Theme.text(0.5)
+        }
+    }
+
+    private func color(for sender: String) -> Color {
+        let palette: [Color] = [
+            Theme.accent, Theme.success, Theme.warning, Theme.danger,
+            Color(hex: 0x5AC8FA), Color(hex: 0xBF5AF2),
+        ]
+        var h = 0
+        for scalar in sender.unicodeScalars {
+            h = (h &* 31 &+ Int(scalar.value)) & 0xFFFF
+        }
+        return palette[h % palette.count]
+    }
+
+    private var age: String {
+        let secs = max(0, -message.timestamp.timeIntervalSinceNow)
+        if secs < 90 { return "now" }
+        if secs < 3600 { return "\(Int(secs / 60))m" }
+        if secs < 86_400 { return "\(Int(secs / 3600))h" }
+        return "\(Int(secs / 86_400))d"
     }
 }

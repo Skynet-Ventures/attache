@@ -10,7 +10,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { AlwaysRule, ApprovalRequest, RpcExtensionUIRequest } from "./types";
+import type { AlwaysRule, ApprovalRequest, RpcExtensionUIRequest, RuleScope } from "./types";
 
 export function attacheDir(): string {
 	return process.env.ATTACHE_DIR ?? join(homedir(), ".attache");
@@ -30,6 +30,32 @@ export function isApprovalSelect(req: RpcExtensionUIRequest): boolean {
 }
 
 const DESTRUCTIVE_HINTS = /rm\s+-rf|sudo\b|mkfs|shutdown|reboot|:\(\)\s*{|>[>]?\s*\/etc\/|curl[^\n]*\|\s*(ba)?sh|dd\s+if=/i;
+
+/**
+ * Boundary validation for the `scope` field on an `allow_always` verdict
+ * (`{ kind: "cwd", cwd }` / `{ kind: "session", sessionId }`). Anything
+ * malformed or absent resolves to the global scope — legacy behavior.
+ */
+export function parseRuleScope(raw: unknown): RuleScope {
+	if (raw !== null && typeof raw === "object" && !Array.isArray(raw)) {
+		const candidate = raw as { kind?: unknown; cwd?: unknown; sessionId?: unknown };
+		if (
+			candidate.kind === "cwd" &&
+			typeof candidate.cwd === "string" &&
+			candidate.cwd.length > 0
+		) {
+			return { kind: "cwd", cwd: candidate.cwd };
+		}
+		if (
+			candidate.kind === "session" &&
+			typeof candidate.sessionId === "string" &&
+			candidate.sessionId.length > 0
+		) {
+			return { kind: "session", sessionId: candidate.sessionId };
+		}
+	}
+	return { kind: "global" };
+}
 
 export function parseApproval(sessionId: string, req: RpcExtensionUIRequest): ApprovalRequest {
 	const title = req.title ?? "";
@@ -80,7 +106,10 @@ export class RuleStore {
 		if (this.loaded) return;
 		try {
 			const raw = await readFile(RULES_FILE(), "utf-8");
-			this.rules = JSON.parse(raw) as AlwaysRule[];
+			const parsed = JSON.parse(raw) as Array<Omit<AlwaysRule, "scope"> & { scope?: unknown }>;
+			// Back-compat: rules persisted before scoping gained no `scope`
+			// field; treat them as global.
+			this.rules = parsed.map(rule => ({ ...rule, scope: parseRuleScope(rule.scope) }));
 		} catch {
 			this.rules = [];
 		}
@@ -110,9 +139,11 @@ export class RuleStore {
 	 * Record a rule derived from an approved request. For bash we key on the
 	 * first token pair of the command (e.g. "rm -rf tmp/" style prefixes are
 	 * intentionally NOT generalized past the second path segment); for other
-	 * tools we match the tool name exactly.
+	 * tools we match the tool name exactly. `scope` restricts which sessions
+	 * the rule applies to; malformed or absent scopes become global (legacy
+	 * behavior).
 	 */
-	async addFromApproval(approval: ApprovalRequest): Promise<AlwaysRule> {
+	async addFromApproval(approval: ApprovalRequest, scope?: unknown): Promise<AlwaysRule> {
 		const pattern = approval.command ? commandPrefix(approval.command) : null;
 		const rule: AlwaysRule = {
 			id: crypto.randomUUID(),
@@ -122,20 +153,58 @@ export class RuleStore {
 			note: pattern
 				? `allow ${approval.tool}: ${pattern}…`
 				: `allow tool ${approval.tool}`,
+			scope: parseRuleScope(scope),
 		};
 		this.rules.push(rule);
 		await this.persist();
 		return rule;
 	}
 
-	match(approval: ApprovalRequest): AlwaysRule | null {
+	/**
+	 * Find the rule auto-approving this request within the session context.
+	 * Scope gates applicability first (global applies everywhere; cwd only in
+	 * sessions rooted at that directory; session only in that exact session).
+	 * When several rules match, the most specific one wins — session over cwd
+	 * over global — so a narrower rule can never be shadowed by a broader one.
+	 */
+	match(approval: ApprovalRequest, ctx: { cwd: string }): AlwaysRule | null {
+		let best: AlwaysRule | null = null;
+		let bestRank = -1;
 		for (const rule of this.rules) {
 			if (rule.tool !== approval.tool) continue;
-			if (rule.pattern === null) return rule;
-			if (approval.command && normalize(approval.command).startsWith(rule.pattern)) return rule;
+			if (!ruleMatches(rule, approval, ctx)) continue;
+			const rank = scopeRank(rule.scope);
+			if (rank > bestRank) {
+				best = rule;
+				bestRank = rank;
+			}
 		}
-		return null;
+		return best;
 	}
+}
+
+const SCOPE_RANK: Record<RuleScope["kind"], number> = { global: 0, cwd: 1, session: 2 };
+
+function scopeRank(scope: RuleScope): number {
+	return SCOPE_RANK[scope.kind];
+}
+
+/** Whether a rule's scope admits the given session context. */
+function scopeApplies(scope: RuleScope, ctx: { cwd: string }, sessionId: string): boolean {
+	switch (scope.kind) {
+		case "global":
+			return true;
+		case "cwd":
+			return scope.cwd === ctx.cwd;
+		case "session":
+			return scope.sessionId === sessionId;
+	}
+}
+
+function ruleMatches(rule: AlwaysRule, approval: ApprovalRequest, ctx: { cwd: string }): boolean {
+	if (!scopeApplies(rule.scope, ctx, approval.sessionId)) return false;
+	if (rule.pattern === null) return true;
+	return !!approval.command && normalize(approval.command).startsWith(rule.pattern);
 }
 
 function normalize(cmd: string): string {

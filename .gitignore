@@ -13,3 +13,5 @@ xcuserdata/
 
 # Local state
 .attache/
+ios/build-dd/
+ios/build-device/

@@ -23,6 +23,15 @@ struct ChatItemView: View {
                     ))
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
+            .contextMenu {
+                if let entryId = item.entryId {
+                    Button {
+                        app.engine?.branch(entryId: entryId, preview: messagePreview(text))
+                    } label: {
+                        Label("Branch here — fork a new session", systemImage: "arrow.triangle.branch")
+                    }
+                }
+            }
 
         case .agentText(let text):
             Text(markdownish(text))
@@ -70,6 +79,9 @@ struct ChatItemView: View {
 
         case .dialog(let dialog):
             DialogCard(itemId: item.id, dialog: dialog)
+
+        case .queued(let queued):
+            QueuedItemView(itemId: item.id, queued: queued)
         }
     }
 
@@ -78,6 +90,51 @@ struct ChatItemView: View {
             markdown: text,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         )) ?? AttributedString(text)
+    }
+
+    private func messagePreview(_ text: String) -> String {
+        String(text.prefix(64))
+    }
+}
+
+// MARK: - Queued offline prompt
+
+/// A send made while the bridge was unreachable. Stays in the stream until it
+/// flushes on reconnect; long-press to drop it from the queue.
+struct QueuedItemView: View {
+    @Environment(AppModel.self) private var app
+    let itemId: String
+    let queued: QueuedPrompt
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 7) {
+            Text("⧗")
+                .font(Theme.mono(11))
+                .foregroundStyle(Theme.warning)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("queued — sends when \(app.machine.name) reconnects")
+                    .font(Theme.mono(9.5))
+                    .foregroundStyle(Theme.warning.opacity(0.7))
+                Text(queued.text)
+                    .font(Theme.mono(11))
+                    .foregroundStyle(Theme.text(0.55))
+                    .lineSpacing(3)
+                    .lineLimit(3)
+                if queued.hasAttachments {
+                    Text("📎 \(queued.attachmentCount) attachment\(queued.attachmentCount == 1 ? "" : "s")")
+                        .font(Theme.mono(9.5))
+                        .foregroundStyle(Theme.text(0.4))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contextMenu {
+            Button(role: .destructive) {
+                app.engine?.removeQueuedPrompt(id: itemId)
+            } label: {
+                Label("Remove from queue", systemImage: "trash")
+            }
+        }
     }
 }
 
@@ -242,6 +299,139 @@ struct DiffLineView: View {
     }
 }
 
+// MARK: - Folded tool run
+
+/// A folded run of consecutive completed tool cards. Collapsed it shows one
+/// summary row; expanded it renders each card inline (each individually
+/// expandable for its diff). Streaming tools never appear here — the grouping
+/// logic keeps in-flight cards visible on their own.
+struct ToolRunCard: View {
+    let group: ToolRunGroup
+    let expanded: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: onToggle) {
+                HStack(spacing: 8) {
+                    Image(systemName: "hammer")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.accent.opacity(0.8))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(group.toolCount) tools ran")
+                            .font(Theme.mono(11.5, .semibold))
+                            .foregroundStyle(Theme.text(0.85))
+                        Text(summary)
+                            .font(Theme.mono(9.5))
+                            .foregroundStyle(Theme.text(0.4))
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Text(expanded ? "▴" : "▾")
+                        .font(Theme.mono(9.5))
+                        .foregroundStyle(Theme.textFaint)
+                }
+                .padding(.horizontal, 11)
+                .padding(.vertical, 9)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if expanded {
+                VStack(spacing: 8) {
+                    ForEach(group.tools.indices, id: \.self) { idx in
+                        ToolCardView(tool: group.tools[idx])
+                    }
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.hairlineFaint), alignment: .top)
+            }
+        }
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.hairline))
+    }
+
+    private var summary: String {
+        let verbs = group.tools.prefix(3).map(\.verb)
+        if group.toolCount > 3 {
+            return "\(verbs.joined(separator: ", ")) · +\(group.toolCount - 3) more · tap to review"
+        }
+        return verbs.joined(separator: ", ")
+    }
+}
+
+// MARK: - Per-file diff sections
+
+/// Proper diff review surface: per-file collapsible sections, add/del line
+/// tinting, and horizontal scrolling so long lines never wrap the card.
+/// Falls back to the caller's text blob when no sections exist.
+struct DiffSectionsView: View {
+    let sections: [DiffFileSection]
+    var fontSize: CGFloat = 10.5
+    /// File paths the user collapsed (folded by path so state survives
+    /// recomputation of the underlying model).
+    @State private var collapsedPaths: Set<String> = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(sections) { section in
+                VStack(alignment: .leading, spacing: 0) {
+                    Button {
+                        toggle(section.path)
+                    } label: {
+                        HStack(spacing: 7) {
+                            Text(collapsedPaths.contains(section.path) ? "▸" : "▾")
+                                .font(Theme.mono(9.5))
+                                .foregroundStyle(Theme.textFaint)
+                            Text(section.path)
+                                .font(Theme.mono(10.5, .semibold))
+                                .foregroundStyle(Theme.text(0.85))
+                                .lineLimit(1)
+                            Spacer(minLength: 6)
+                            if section.addCount > 0 {
+                                Text("+\(section.addCount)")
+                                    .font(Theme.mono(9.5, .medium))
+                                    .foregroundStyle(Theme.success)
+                            }
+                            if section.delCount > 0 {
+                                Text("−\(section.delCount)")
+                                    .font(Theme.mono(9.5, .medium))
+                                    .foregroundStyle(Theme.danger)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.codeBlock.opacity(0.55))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if !collapsedPaths.contains(section.path) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            LazyVStack(alignment: .leading, spacing: 0) {
+                                ForEach(section.lines) { line in
+                                    DiffLineView(line: line, fontSize: fontSize)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineFaint))
+            }
+        }
+    }
+
+    private func toggle(_ path: String) {
+        if collapsedPaths.contains(path) { collapsedPaths.remove(path) } else { collapsedPaths.insert(path) }
+    }
+}
+
 // MARK: - Advisor block
 
 struct AdvisorBlock: View {
@@ -283,6 +473,10 @@ struct AdvisorBlock: View {
                     .foregroundStyle(Theme.text(0.85))
                     .lineSpacing(3.5)
                 HStack(spacing: 14) {
+                    Button("Ask advisor to elaborate") {
+                        app.engine?.advisorElaborate(itemId: itemId)
+                    }
+                    .foregroundStyle(Theme.warning)
                     Button("Ask agent to address") {
                         app.engine?.advisorAddress(itemId: itemId)
                     }
@@ -324,7 +518,13 @@ struct InlineApprovalCard: View {
                 Spacer()
             }
             .padding(.bottom, 6)
-            if let command = approval.command {
+            if !approval.diffLines.isEmpty {
+                // Proper review: per-file collapsible sections, add/del tinting,
+                // horizontal scroll. The raw blob it came from adds nothing.
+                DiffSectionsView(sections: DiffSections.sections(from: approval.diffLines), fontSize: 10)
+                    .padding(.bottom, 5)
+            } else if let command = approval.command {
+                // No diff detected — plain text blob, exactly as before.
                 Text(command)
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.text)
@@ -335,21 +535,14 @@ struct InlineApprovalCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 7))
                     .padding(.bottom, 5)
             }
-            if !approval.diffLines.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(approval.diffLines) { DiffLineView(line: $0, fontSize: 10) }
-                }
-                .padding(.vertical, 6)
-                .background(Theme.codeBlock)
-                .clipShape(RoundedRectangle(cornerRadius: 7))
-                .padding(.bottom, 5)
-            }
             Text("reason: \(approval.reason)")
                 .font(Theme.sans(11))
                 .foregroundStyle(Theme.text(0.5))
                 .padding(.bottom, 9)
             ApprovalButtons(height: 32) { verdict in
                 app.engine?.resolveApproval(id: approval.id, verdict: verdict)
+            } onAlways: { scope in
+                app.engine?.resolveApproval(id: approval.id, verdict: .allowAlways, scope: scope)
             }
         }
         .padding(.horizontal, 12)
@@ -522,6 +715,10 @@ struct DialogCard: View {
 struct ApprovalButtons: View {
     var height: CGFloat = 30
     var onVerdict: (Verdict) -> Void
+    /// When set, "Always" opens the scope picker (contract F) instead of
+    /// firing `.allowAlways` directly.
+    var onAlways: ((RuleScopeChoice) -> Void)? = nil
+    @State private var showScopePicker = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -545,7 +742,13 @@ struct ApprovalButtons: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(PressableStyle())
-            Button { onVerdict(.allowAlways) } label: {
+            Button {
+                if onAlways != nil {
+                    showScopePicker = true
+                } else {
+                    onVerdict(.allowAlways)
+                }
+            } label: {
                 Text("Always")
                     .font(Theme.sans(height > 30 ? 12 : 11.5, .medium))
                     .foregroundStyle(Theme.accent)
@@ -555,6 +758,16 @@ struct ApprovalButtons: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+        }
+        .confirmationDialog("Allow this every time…", isPresented: $showScopePicker, titleVisibility: .visible) {
+            ForEach(RuleScopeChoice.allCases) { choice in
+                Button(choice.label) {
+                    onAlways?(choice)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Scope decides where the always-allow rule applies.")
         }
     }
 }

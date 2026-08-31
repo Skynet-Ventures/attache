@@ -14,8 +14,11 @@ bun run start                      # = bun run src/main.ts serve
 Flags: `--port` (default 8674), `--host` (default 0.0.0.0), `--omp <path>`
 (default: `omp` on PATH).
 
-Startup prints the tailnet address and a one-time pairing code. Other
-commands: `attache-bridge devices` lists paired devices.
+Startup prints the tailnet address and a one-time pairing code; `pair` prints
+guidance pointing back at the serve log. Other commands: `attache-bridge
+devices` lists paired devices, `attache-bridge revoke <deviceId>` revokes a
+device's token immediately — its live sessions close with result error code
+`revoked`.
 
 ## State
 
@@ -23,9 +26,14 @@ Everything lives in `~/.attache/` (override with `ATTACHE_DIR`):
 
 | file | contents |
 |---|---|
-| `auth.json` | paired devices (token **hashes** only) |
-| `rules.json` | "always allow" approval rules |
-| `push.json` | registered push targets (webhooks) |
+| `auth.json` | paired devices (token **hashes** only; per-device `pushKey` for APNs payload encryption) |
+| `config.json` | bridge config: `approvalTimeoutSec`, optional `apnsRelayUrl` / `apnsRelayBearer` for Tier 3 push |
+| `rules.json` | "always allow" approval rules, each with a `scope` (`global` / `cwd` / `session`) |
+| `push.json` | registered push targets (`webhook` URLs or `apns` device tokens) |
+
+Rules scoped to a `cwd` or `session` only auto-approve matching sessions;
+rules without a `scope` field are treated as global (existing installs keep
+working unchanged).
 
 omp's own data (`~/.omp/agent`) is read for session listings and written only
 through omp itself — except `config.yml` role edits, which are backed up

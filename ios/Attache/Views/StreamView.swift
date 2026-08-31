@@ -14,6 +14,20 @@ struct StreamView: View {
     @State private var attachments: [ComposerAttachment] = []
     @State private var showPhotosPicker = false
     @State private var showFileImporter = false
+    @State private var showRenameAlert = false
+    @State private var renameText = ""
+    @State private var showStatsSheet = false
+    @State private var sessionAction: SessionActionMode?
+    @State private var exporting = false
+    @State private var shareItem: ShareURLItem?
+    @State private var suppressSlashAutoOpen = false
+    // Scrub-back: auto-follow pins the stream to the bottom; scrolling up (or
+    // the explicit toggle) disengages it and an unread pill offers to resume.
+    @State private var autoFollow = true
+    @State private var unreadCount = 0
+    @State private var capturedItemCount = 0
+    @State private var scrubViewportHeight: CGFloat = 0
+    @State private var expandedToolGroups: Set<String> = []
     @FocusState private var composerFocused: Bool
 
     var body: some View {
@@ -24,6 +38,22 @@ struct StreamView: View {
             composer
         }
         .background(Theme.bg)
+        .alert("Rename session", isPresented: $showRenameAlert) {
+            TextField("session title", text: $renameText)
+            Button("Rename") { app.engine?.renameSession(renameText) }
+            Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showStatsSheet) {
+            SessionStatsSheet()
+        }
+        .sheet(item: $sessionAction) { mode in
+            SessionActionSheet(mode: mode) { instructions in
+                runSessionAction(mode, instructions: instructions)
+            }
+        }
+        .sheet(item: $shareItem) { item in
+            ActivityView(items: [item.url])
+        }
     }
 
     // MARK: Header
@@ -38,12 +68,77 @@ struct StreamView: View {
                         .foregroundStyle(Theme.text)
                         .kerning(-0.15)
                         .lineLimit(1)
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button {
+                                renameText = app.sessionTitle
+                                showRenameAlert = true
+                            } label: {
+                                Label("Rename session…", systemImage: "pencil")
+                            }
+                            Button {
+                                showStatsSheet = true
+                            } label: {
+                                Label("Session stats", systemImage: "chart.bar")
+                            }
+                        }
                     Text("\(app.branchLabel) · turn \(app.turnNo) · \(app.elapsedLabel)")
                         .font(Theme.mono(10))
                         .foregroundStyle(Theme.textTertiary)
                         .lineLimit(1)
                 }
                 Spacer()
+                Menu {
+                    Button {
+                        exportAndShare()
+                    } label: {
+                        Label("Export transcript…", systemImage: "square.and.arrow.up")
+                    }
+                    Divider()
+                    Button {
+                        sessionAction = .handoff
+                    } label: {
+                        Label("Hand off & continue…", systemImage: "paperplane")
+                    }
+                    Button {
+                        sessionAction = .newSession
+                    } label: {
+                        Label("Start fresh session from this one…", systemImage: "plus.square.on.square")
+                    }
+                    Divider()
+                    Button {
+                        renameText = app.sessionTitle
+                        showRenameAlert = true
+                    } label: {
+                        Label("Rename session…", systemImage: "pencil")
+                    }
+                    Button {
+                        showStatsSheet = true
+                    } label: {
+                        Label("Session stats", systemImage: "chart.bar")
+                    }
+                } label: {
+                    Text("⋯")
+                        .font(Theme.mono(13, .semibold))
+                        .foregroundStyle(Theme.text(0.7))
+                        .frame(width: 26, height: 26)
+                        .background(Theme.chip)
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Theme.hairlineStrong))
+                }
+                .buttonStyle(.plain)
+                Button {
+                    showStatsSheet = true
+                } label: {
+                    Text("◫")
+                        .font(Theme.mono(12, .medium))
+                        .foregroundStyle(Theme.text(0.7))
+                        .frame(width: 26, height: 26)
+                        .background(Theme.chip)
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Theme.hairlineStrong))
+                }
+                .buttonStyle(.plain)
                 Button {
                     showBranchSheet.toggle()
                     showRoleSheet = false
@@ -71,6 +166,41 @@ struct StreamView: View {
             }
             .padding(.horizontal, Theme.streamGutter)
             .padding(.bottom, 9)
+            if app.ctxPercent >= 70 {
+                HStack(spacing: 8) {
+                    BlinkDot(color: Theme.warning, size: 6)
+                    Text("context \(Int(app.ctxPercent))% — long sessions risk truncation")
+                        .font(Theme.mono(9.5))
+                        .foregroundStyle(Theme.warning.opacity(0.85))
+                        .lineLimit(1)
+                    Spacer()
+                    Button {
+                        sessionAction = .handoff
+                    } label: {
+                        Text("handoff ▸")
+                            .font(Theme.mono(9.5, .semibold))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Theme.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(PressableStyle(scale: 0.92))
+                    Button {
+                        sessionAction = .newSession
+                    } label: {
+                        Text("new session ▸")
+                            .font(Theme.mono(9.5, .medium))
+                            .foregroundStyle(Theme.accent)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Theme.accent.opacity(0.5)))
+                    }
+                    .buttonStyle(PressableStyle(scale: 0.92))
+                }
+                .padding(.horizontal, Theme.streamGutter)
+                .padding(.bottom, 9)
+            }
         }
         .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.hairline), alignment: .bottom)
     }
@@ -82,9 +212,26 @@ struct StreamView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10, pinnedViews: [.sectionHeaders]) {
                     Section {
-                        ForEach(app.items) { item in
-                            ChatItemView(item: item)
-                                .id(item.id)
+                        ForEach(StreamGrouping.renderUnits(from: app.items)) { unit in
+                            switch unit {
+                            case .item(let item):
+                                ChatItemView(item: item)
+                                    .id(item.id)
+                            case .toolRun(let group):
+                                ToolRunCard(
+                                    group: group,
+                                    expanded: expandedToolGroups.contains(group.id)
+                                ) {
+                                    withAnimation(.easeOut(duration: 0.15)) {
+                                        if expandedToolGroups.contains(group.id) {
+                                            expandedToolGroups.remove(group.id)
+                                        } else {
+                                            expandedToolGroups.insert(group.id)
+                                        }
+                                    }
+                                }
+                                .id(group.id)
+                            }
                         }
                         if app.typing {
                             TypingIndicator()
@@ -99,30 +246,135 @@ struct StreamView: View {
                 }
                 .padding(.horizontal, Theme.streamGutter)
                 .padding(.vertical, 12)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: StreamContentGeomKey.self,
+                            value: StreamContentGeom(
+                                contentHeight: geo.size.height,
+                                topOffset: geo.frame(in: .named("stream-scroll")).minY
+                            )
+                        )
+                    }
+                )
             }
+            .coordinateSpace(name: "stream-scroll")
             .defaultScrollAnchor(.bottom)
             // Reading room: drag pushes the keyboard away interactively, and
             // a tap on any non-interactive part of the stream drops it too.
             .scrollDismissesKeyboard(.interactively)
             .onTapGesture { composerFocused = false }
+            // Scrubbing up (finger drags downward) disengages auto-follow.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 6)
+                    .onChanged { value in
+                        if autoFollow, value.translation.height > 0 {
+                            disengageFollow()
+                        }
+                    }
+            )
+            .background(
+                GeometryReader { vp in
+                    Color.clear.preference(key: StreamViewportKey.self, value: vp.size.height)
+                }
+            )
+            .onPreferenceChange(StreamContentGeomKey.self) { geom in
+                let distance = max(0, scrubViewportHeight - (geom.contentHeight + geom.topOffset))
+                // Reaching the bottom re-engages auto-follow.
+                if !autoFollow, distance < 80 {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo("stream-bottom", anchor: .bottom)
+                    }
+                    resumeFollow()
+                }
+            }
+            .onPreferenceChange(StreamViewportKey.self) { height in
+                scrubViewportHeight = height
+            }
             .onChange(of: app.items.count) {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    proxy.scrollTo("stream-bottom", anchor: .bottom)
+                if autoFollow {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo("stream-bottom", anchor: .bottom)
+                    }
+                } else {
+                    unreadCount = max(unreadCount, app.items.count - capturedItemCount)
                 }
             }
             .onChange(of: app.typing) {
+                if autoFollow {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo("stream-bottom", anchor: .bottom)
+                    }
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                scrubNotice(proxy: proxy)
+            }
+        }
+    }
+
+    /// The follow toggle (pinned) or the "N new ↓" unread resume pill.
+    @ViewBuilder
+    private func scrubNotice(proxy: ScrollViewProxy) -> some View {
+        if autoFollow {
+            Button {
+                disengageFollow()
+            } label: {
+                HStack(spacing: 4) {
+                    Text("⌄").font(Theme.mono(11, .semibold))
+                    Text("following")
+                        .font(Theme.mono(9, .medium))
+                }
+                .foregroundStyle(Theme.text(0.55))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Theme.chip)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(Theme.hairlineStrong))
+            }
+            .buttonStyle(.plain)
+        } else {
+            Button {
                 withAnimation(.easeOut(duration: 0.2)) {
                     proxy.scrollTo("stream-bottom", anchor: .bottom)
                 }
+                resumeFollow()
+            } label: {
+                HStack(spacing: 5) {
+                    if unreadCount > 0 {
+                        Text("\(unreadCount) new")
+                            .font(Theme.mono(10, .semibold))
+                    }
+                    Text("↓")
+                        .font(Theme.mono(11, .semibold))
+                }
+                .foregroundStyle(.black)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(Theme.accent))
             }
+            .buttonStyle(.plain)
         }
+    }
+
+    private func disengageFollow() {
+        guard autoFollow else { return }
+        autoFollow = false
+        capturedItemCount = app.items.count
+        unreadCount = 0
+    }
+
+    private func resumeFollow() {
+        guard !autoFollow else { return }
+        autoFollow = true
+        unreadCount = 0
     }
 
     // MARK: Composer
 
     private var composer: some View {
         VStack(spacing: 0) {
-            if showSlashSheet { SlashPalette(onPick: pickSlash) }
+            if showSlashSheet { SlashPalette(query: slashQuery, onPick: pickSlash) }
             if showRoleSheet { RolePickerSheet(onPick: pickRole) }
             if showModelSheet { ModelPickerSheet(onPick: pickModel) }
             if showBranchSheet { BranchSheet(onPick: pickBranch) }
@@ -171,6 +423,19 @@ struct StreamView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                             .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.hairlineStrong))
                             .lineLimit(1)
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        app.engine?.setFastMode(!app.fastModeActive)
+                    } label: {
+                        Text("⚡ fast")
+                            .font(Theme.mono(10, .medium))
+                            .foregroundStyle(app.fastModeActive ? Theme.warning : Theme.text(0.6))
+                            .padding(.horizontal, 8)
+                            .frame(height: 24)
+                            .background(Theme.chip)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(app.fastModeActive ? Theme.warning.opacity(0.5) : Theme.hairlineStrong))
                     }
                     .buttonStyle(.plain)
                     Button {
@@ -237,20 +502,41 @@ struct StreamView: View {
                             .lineLimit(1...4)
                             .focused($composerFocused)
                             .onSubmit(sendDraft)
+                            // Typing "/" opens the searchable palette; removing
+                            // the leading slash closes it.
+                            .onChange(of: draft) { old, new in
+                                if suppressSlashAutoOpen {
+                                    suppressSlashAutoOpen = false
+                                } else if new.hasPrefix("/"), !old.hasPrefix("/") {
+                                    withAnimation(.easeOut(duration: 0.15)) {
+                                        showSlashSheet = true
+                                        showRoleSheet = false
+                                        showModelSheet = false
+                                        showBranchSheet = false
+                                    }
+                                } else if !new.hasPrefix("/") {
+                                    withAnimation(.easeOut(duration: 0.15)) {
+                                        showSlashSheet = false
+                                    }
+                                }
+                            }
                     }
                     .padding(.horizontal, 13)
                     .frame(minHeight: 38)
                     .background(Theme.chip)
                     .clipShape(RoundedRectangle(cornerRadius: 11))
                     .overlay(RoundedRectangle(cornerRadius: 11).stroke(Theme.hairlineStrong))
-                    Button(action: sendDraft) {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.black)
-                            .frame(width: 32, height: 32)
-                            .background(Circle().fill(Theme.accent))
-                    }
-                    .buttonStyle(PressableStyle(scale: 0.92))
+                    // Send on tap; long-press opens the slash palette instead.
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Theme.accent))
+                        .contentShape(Circle())
+                        .onTapGesture { sendDraft() }
+                        .onLongPressGesture(minimumDuration: 0.45) {
+                            openSlashPalette()
+                        }
                 }
             }
             .padding(.horizontal, Theme.streamGutter)
@@ -364,7 +650,22 @@ struct StreamView: View {
     private func pickSlash(_ cmd: String) {
         draft = cmd + " "
         showSlashSheet = false
+        suppressSlashAutoOpen = true
         composerFocused = true
+    }
+
+    private func openSlashPalette() {
+        withAnimation(.easeOut(duration: 0.15)) {
+            showSlashSheet.toggle()
+            showRoleSheet = false
+            showModelSheet = false
+            showBranchSheet = false
+        }
+    }
+
+    /// Palette search is the composer draft itself — typing filters live.
+    private var slashQuery: String {
+        draft.hasPrefix("/") ? draft : ""
     }
 
     private func pickRole(_ role: String) {
@@ -376,6 +677,163 @@ struct StreamView: View {
         showBranchSheet = false
         app.engine?.branch(entryId: point.id, preview: point.preview)
     }
+
+    // MARK: Session actions (handoff / new-session-from-parent / export)
+
+    private func runSessionAction(_ mode: SessionActionMode, instructions: String?) {
+        guard let engine = app.engine else { return }
+        switch mode {
+        case .handoff:
+            // Hand off, then land in a fresh descended session (the contract
+            // flow: attach to the resulting session).
+            guard let parent = app.activeSummary else {
+                Task { _ = await engine.handoff(instructions: instructions) }
+                return
+            }
+            Task {
+                _ = await engine.handoff(instructions: instructions)
+                engine.newSession(parent: parent, instructions: nil)
+            }
+        case .newSession:
+            guard let parent = app.activeSummary else { return }
+            engine.newSession(parent: parent, instructions: instructions)
+        }
+    }
+
+    private func exportAndShare() {
+        guard let engine = app.engine else { return }
+        exporting = true
+        Task {
+            defer { exporting = false }
+            do {
+                let base64 = try await engine.exportTranscript()
+                guard let data = Data(base64Encoded: base64) else {
+                    app.append(.notice("export decode failed"))
+                    return
+                }
+                let url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("transcript-\(Int(Date().timeIntervalSince1970)).html")
+                try data.write(to: url, options: .atomic)
+                shareItem = ShareURLItem(url: url)
+            } catch let error as BridgeError where error.code == "too_large" {
+                // Contract D: the bridge caps the payload at 20MB; tell the
+                // user gracefully instead of dumping an error sheet.
+                app.append(.notice("transcript too large to export from this device (20MB cap)"))
+            } catch {
+                app.append(.notice("export failed: \((error as? BridgeError)?.message ?? "error")"))
+            }
+        }
+    }
+}
+
+/// Which confirmation sheet the session menu opens (contracts A & B).
+enum SessionActionMode: String, Identifiable {
+    case handoff
+    case newSession
+    var id: String { rawValue }
+}
+
+struct ShareURLItem: Identifiable {
+    let url: URL
+    var id: String { url.path }
+}
+
+/// Confirmation sheet for handoff / new-session-from-parent. Offers an
+/// optional instructions field; confirm routes to the engine.
+struct SessionActionSheet: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    let mode: SessionActionMode
+    var onConfirm: (String?) -> Void
+    @State private var instructions = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 9) {
+                Text(mode == .handoff ? "✉" : "⑂")
+                    .font(Theme.mono(14, .semibold))
+                    .foregroundStyle(Theme.accent)
+                Text(mode == .handoff ? "Hand off this session" : "Start from this session")
+                    .font(Theme.sans(15, .semibold))
+                    .foregroundStyle(Theme.text)
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.text(0.7))
+                        .frame(width: 30, height: 30)
+                        .background(Theme.chip)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineStrong))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, Theme.streamGutter)
+            .padding(.vertical, 10)
+            .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.hairline), alignment: .bottom)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(mode == .handoff
+                    ? "omp writes a handoff document and we start a fresh session seeded with it. The original session stays untouched for review."
+                    : "A fresh session is spawned from this session's file — context carries over, history does not mutate.")
+                    .font(Theme.sans(12))
+                    .foregroundStyle(Theme.text(0.6))
+                    .lineSpacing(3)
+                TextField(mode == .handoff ? "optional instructions for the next session…" : "optional instructions for the fresh session…", text: $instructions, axis: .vertical)
+                    .font(Theme.sans(12.5))
+                    .foregroundStyle(Theme.text)
+                    .tint(Theme.accent)
+                    .lineLimit(2...4)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 7)
+                    .background(Theme.codeBlock)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineStrong))
+                HStack(spacing: 8) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("Cancel")
+                            .font(Theme.sans(12, .medium))
+                            .foregroundStyle(Theme.text(0.6))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 36)
+                            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.white.opacity(0.15)))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        dismiss()
+                        onConfirm(instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : instructions)
+                    } label: {
+                        Text(mode == .handoff ? "Hand off & continue" : "Start new session")
+                            .font(Theme.sans(12.5, .semibold))
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 36)
+                            .background(Theme.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: 9))
+                    }
+                    .buttonStyle(PressableStyle(scale: 0.97))
+                }
+            }
+            .padding(Theme.streamGutter)
+            .padding(.top, 10)
+        }
+        .presentationDetents([.height(300)])
+        .presentationBackground(Theme.sheet)
+    }
+}
+
+/// UIActivityViewController share sheet for the exported transcript.
+private struct ActivityView: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Goal banner
@@ -419,42 +877,108 @@ struct GoalBanner: View {
 
 // MARK: - Composer sheets
 
+/// Searchable slash palette fed by omp's advertised commands (bridge
+/// `commands` event). Filters live against the composer draft; selecting a
+/// row inserts the command text. Falls back to built-ins without a bridge.
 struct SlashPalette: View {
+    @Environment(AppModel.self) private var app
+    var query: String
     var onPick: (String) -> Void
-    private let items: [(String, String)] = [
-        ("/plan", "read-only drafting pass, structured handoff"),
-        ("/goal", "pin an objective, self-driving loop until proven done"),
-        ("/loop", "resubmit the same prompt N times"),
-        ("/compact", "snapcompact the context now"),
-        ("/agents", "open the agent hub"),
-        ("/resume", "session picker"),
-        ("/new", "new saved session"),
+
+    private var commands: [SlashCommand] {
+        let advertised = app.availableCommands
+        return advertised.isEmpty ? Self.builtinFallback : advertised
+    }
+
+    private static let builtinFallback: [SlashCommand] = [
+        SlashCommand(name: "/plan", source: "builtin", summary: "read-only drafting pass, structured handoff", hint: "<objective>"),
+        SlashCommand(name: "/goal", source: "builtin", summary: "pin an objective, self-driving loop until proven done", hint: "<objective>"),
+        SlashCommand(name: "/loop", source: "builtin", summary: "resubmit the same prompt N times", hint: "<n> <prompt>"),
+        SlashCommand(name: "/compact", source: "builtin", summary: "snapcompact the context now"),
+        SlashCommand(name: "/agents", source: "builtin", summary: "open the agent hub"),
+        SlashCommand(name: "/resume", source: "builtin", summary: "session picker"),
+        SlashCommand(name: "/new", source: "builtin", summary: "new saved session"),
     ]
+
+    private var needle: String {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let dropped = trimmed.hasPrefix("/") ? String(trimmed.dropFirst()) : trimmed
+        return dropped.lowercased()
+    }
+
+    private var rows: [(name: String, summary: String?, hint: String?, indent: Bool)] {
+        let all: [(name: String, summary: String?, hint: String?, indent: Bool)] = commands.flatMap { cmd in
+            [(name: cmd.name, summary: cmd.summary, hint: cmd.hint, indent: false)]
+                + cmd.subcommands.map { (name: $0.name, summary: $0.summary, hint: $0.hint, indent: true) }
+        }
+        guard !needle.isEmpty else { return all }
+        return all.filter { row in
+            if row.name.lowercased().contains(needle) { return true }
+            if let summary = row.summary, summary.lowercased().contains(needle) { return true }
+            if let hint = row.hint, hint.lowercased().contains(needle) { return true }
+            return false
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            ForEach(items, id: \.0) { cmd, desc in
-                Button { onPick(cmd) } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(cmd)
-                            .font(Theme.mono(11.5, .semibold))
-                            .foregroundStyle(Theme.accent)
-                            .frame(width: 74, alignment: .leading)
-                        Text(desc)
-                            .font(Theme.sans(11))
-                            .foregroundStyle(Theme.textSecondary)
-                            .lineLimit(1)
-                        Spacer()
+            HStack {
+                Text("SEARCH — TYPE TO FILTER")
+                    .font(Theme.mono(9.5, .semibold))
+                    .tracking(1)
+                    .foregroundStyle(Theme.text(0.4))
+                Spacer()
+                Text("\(rows.count) shown")
+                    .font(Theme.mono(9))
+                    .foregroundStyle(Theme.textFaint)
+            }
+            .padding(.horizontal, 13)
+            .padding(.top, 9)
+            .padding(.bottom, 5)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if rows.isEmpty {
+                        Text("no command matches \"\(needle)\"")
+                            .font(Theme.mono(10.5))
+                            .foregroundStyle(Theme.textFaint)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 12)
                     }
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 9)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                if cmd != items.last?.0 {
-                    Divider().overlay(Theme.hairlineFaint)
+                    ForEach(rows, id: \.name) { row in
+                        Button { onPick(row.name) } label: {
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                Text(row.name)
+                                    .font(Theme.mono(11.5, .semibold))
+                                    .foregroundStyle(Theme.accent)
+                                    .frame(width: row.indent ? 98 : 74, alignment: .leading)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    if let summary = row.summary, !summary.isEmpty {
+                                        Text(summary)
+                                            .font(Theme.sans(11))
+                                            .foregroundStyle(Theme.textSecondary)
+                                            .lineLimit(1)
+                                    }
+                                    if let hint = row.hint, !hint.isEmpty {
+                                        Text(hint)
+                                            .font(Theme.mono(9))
+                                            .foregroundStyle(Theme.text(0.3))
+                                            .lineLimit(1)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if row.name != rows.last?.name {
+                            Divider().overlay(Theme.hairlineFaint)
+                        }
+                    }
                 }
             }
+            .frame(maxHeight: 320)
         }
         .background(Theme.sheet)
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -645,5 +1169,205 @@ struct BranchSheet: View {
         .shadow(color: .black.opacity(0.6), radius: 20, y: -10)
         .padding(.horizontal, 10)
         .padding(.bottom, 8)
+    }
+}
+
+// MARK: - Session stats
+
+/// Grouped read-only view of the bridge's `get_session_stats` passthrough —
+/// omp's raw stats (tokens, cost, cache) rendered verbatim in key/value rows.
+struct SessionStatsSheet: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var rows: [SessionStatRow] = []
+    @State private var loading = true
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.text(0.7))
+                        .frame(width: 30, height: 30)
+                        .background(Theme.chip)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineStrong))
+                }
+                .buttonStyle(.plain)
+                Text("Session stats")
+                    .font(Theme.sans(15, .semibold))
+                    .foregroundStyle(Theme.text)
+                Spacer()
+            }
+            .padding(.horizontal, Theme.streamGutter)
+            .padding(.vertical, 10)
+            .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.hairline), alignment: .bottom)
+
+            if loading {
+                Spacer()
+                ProgressView().controlSize(.small).tint(Theme.accent)
+                Spacer()
+            } else if rows.isEmpty {
+                Spacer()
+                Text("no stats reported for this session")
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(Theme.textFaint)
+                Spacer()
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("QUEUE MODES — ADVANCED")
+                            .font(Theme.mono(9.5, .semibold))
+                            .tracking(1)
+                            .foregroundStyle(Theme.text(0.4))
+                            .padding(.horizontal, 13)
+                            .padding(.top, 12)
+                            .padding(.bottom, 5)
+                        VStack(spacing: 0) {
+                            queueModeRow("Steering", selection: Binding(
+                                get: { app.steeringMode.rawValue },
+                                set: { newValue in
+                                    if let m = QueueSteeringMode(rawValue: newValue) {
+                                        applyQueueModes(steering: m, followUp: app.followUpMode, interrupt: app.interruptMode)
+                                    }
+                                }
+                            ), options: [QueueSteeringMode.all.rawValue, QueueSteeringMode.oneAtATime.rawValue])
+                            Divider().overlay(Theme.hairlineFaint)
+                            queueModeRow("Follow-ups", selection: Binding(
+                                get: { app.followUpMode.rawValue },
+                                set: { newValue in
+                                    if let m = QueueFollowUpMode(rawValue: newValue) {
+                                        applyQueueModes(steering: app.steeringMode, followUp: m, interrupt: app.interruptMode)
+                                    }
+                                }
+                            ), options: [QueueFollowUpMode.all.rawValue, QueueFollowUpMode.oneAtATime.rawValue])
+                            Divider().overlay(Theme.hairlineFaint)
+                            queueModeRow("Interrupt", selection: Binding(
+                                get: { app.interruptMode.rawValue },
+                                set: { newValue in
+                                    if let m = QueueInterruptMode(rawValue: newValue) {
+                                        applyQueueModes(steering: app.steeringMode, followUp: app.followUpMode, interrupt: m)
+                                    }
+                                }
+                            ), options: [QueueInterruptMode.immediate.rawValue, QueueInterruptMode.wait.rawValue])
+                        }
+                        .background(Theme.raisedAlt)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairlineFaint))
+                        .padding(.bottom, 14)
+                        Text("FROM OMP — READ-ONLY")
+                            .font(Theme.mono(9.5, .semibold))
+                            .tracking(1)
+                            .foregroundStyle(Theme.text(0.4))
+                            .padding(.horizontal, 13)
+                            .padding(.top, 12)
+                            .padding(.bottom, 5)
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { idx, row in
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                Text(row.key)
+                                    .font(Theme.mono(10.5, .medium))
+                                    .foregroundStyle(Theme.text(0.7))
+                                Spacer()
+                                Text(row.value)
+                                    .font(Theme.mono(10.5))
+                                    .foregroundStyle(Theme.text(0.55))
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 9)
+                            if idx < rows.count - 1 {
+                                Divider().overlay(Theme.hairlineFaint)
+                            }
+                        }
+                    }
+                    .background(Theme.raisedAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairlineFaint))
+                    .padding(.horizontal, Theme.streamGutter)
+                    .padding(.bottom, 20)
+                }
+            }
+        }
+        .background(Theme.bg)
+        .task {
+            rows = await app.engine?.fetchSessionStats() ?? []
+            loading = false
+        }
+    }
+
+    /// One queue-mode picker row: label + two-option segmented control.
+    private func queueModeRow(_ label: String, selection: Binding<String>, options: [String]) -> some View {
+        HStack {
+            Text(label)
+                .font(Theme.sans(12.5))
+                .foregroundStyle(Theme.text)
+            Spacer()
+            HStack(spacing: 0) {
+                ForEach(options, id: \.self) { option in
+                    Button {
+                        selection.wrappedValue = option
+                    } label: {
+                        Text(optionLabel(option))
+                            .font(Theme.mono(9.5, selection.wrappedValue == option ? .semibold : .medium))
+                            .foregroundStyle(selection.wrappedValue == option ? .black : Theme.text(0.45))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(selection.wrappedValue == option ? Theme.accent : .clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(2)
+            .background(Theme.codeBlock)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Theme.hairlineStrong))
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+    }
+
+    private func optionLabel(_ raw: String) -> String {
+        switch raw {
+        case "one-at-a-time": "one at a time"
+        case "immediate": "immediate"
+        case "wait": "wait for turn"
+        default: raw
+        }
+    }
+
+    /// Persist a queue-mode change to the bridge (contract C) and mirror the
+    /// echoed final modes from session_state.
+    private func applyQueueModes(
+        steering: QueueSteeringMode, followUp: QueueFollowUpMode, interrupt: QueueInterruptMode
+    ) {
+        app.engine?.setQueueModes(steeringMode: steering, followUpMode: followUp, interruptMode: interrupt)
+    }
+}
+
+// MARK: - Scrub geometry plumbing
+
+/// Scroll metrics captured from the stream content for the follow/scrub
+/// behavior. Tracks distance-from-bottom without iOS 18-only APIs.
+private struct StreamContentGeom: Equatable {
+    var contentHeight: CGFloat = 0
+    var topOffset: CGFloat = 0
+}
+
+private struct StreamContentGeomKey: PreferenceKey {
+    static var defaultValue: StreamContentGeom = StreamContentGeom()
+    static func reduce(value: inout StreamContentGeom, nextValue: () -> StreamContentGeom) {
+        value = nextValue()
+    }
+}
+
+private struct StreamViewportKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MachinesView: View {
     @Environment(AppModel.self) private var app
+    @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
     /// Set during onboarding so a successful pair continues to notifications.
     var onboardingMode = false
@@ -76,6 +77,13 @@ struct MachinesView: View {
                 }
                 .padding(.horizontal, 13)
                 .padding(.vertical, 12)
+                .contextMenu {
+                    Button(role: .destructive) {
+                        removeMachine(machine)
+                    } label: {
+                        Label("Remove machine — revoke token", systemImage: "minus.circle")
+                    }
+                }
                 if idx < app.pairedMachines.count - 1 {
                     Divider().overlay(Theme.hairlineFaint)
                 }
@@ -84,6 +92,13 @@ struct MachinesView: View {
         .background(Theme.raisedAlt)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairlineFaint))
+    }
+
+    /// Forget a machine: disconnect its client, drop its token from the
+    /// Keychain. The user can always re-pair (which replaces the record).
+    private func removeMachine(_ machine: PairedMachine) {
+        app.engine?.removeMachine(id: machine.id)
+        settings.removeMachine(id: machine.id)
     }
 
     private func isOnline(_ state: PairedMachine.State) -> Bool {
@@ -263,11 +278,13 @@ struct PairCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Pair a machine")
+            Text(onboardingMode ? "Pair a machine" : "Add a machine")
                 .font(Theme.sans(14, .semibold))
                 .foregroundStyle(Theme.text)
                 .padding(.bottom, 4)
-            Text("On the machine running omp:")
+            Text(onboardingMode
+                ? "On the machine running omp:"
+                : "Pair another machine, or re-pair one whose token was revoked:")
                 .font(Theme.sans(11.5))
                 .foregroundStyle(Theme.text(0.5))
                 .padding(.bottom, 12)
@@ -441,14 +458,26 @@ struct PairCard: View {
         Task {
             do {
                 let result = try await BridgeClient.pair(host: host, code: code, deviceName: UIDevice.current.name)
-                settings.pairing = PairingInfo(host: host, token: result.token, machineName: result.machineName)
+                let record = PairedMachineRecord(
+                    id: UUID().uuidString,
+                    name: result.machineName,
+                    host: host,
+                    pushKey: result.pushKey
+                )
+                settings.addMachine(record, token: result.token)
                 pairedName = result.machineName
                 pairing = false
                 if !onboardingMode {
-                    // Swap engines live outside onboarding.
-                    let engine = BridgeEngine(pairing: settings.pairing!)
-                    app.engine = engine
-                    engine.start(app: app)
+                    // Wire the new machine into the live engine without
+                    // dropping any already-paired machines (contract I). A
+                    // demo/no engine gets replaced by a real one.
+                    if app.engine is DemoEngine || app.engine == nil {
+                        let engine = BridgeEngine(machines: settings.pairedMachines)
+                        app.engine = engine
+                        engine.start(app: app)
+                    } else {
+                        app.engine?.connectMachine(record)
+                    }
                 }
             } catch {
                 pairing = false

@@ -4,6 +4,7 @@ import WidgetKit
 @main
 struct AttacheWidgetsBundle: WidgetBundle {
     var body: some Widget {
+        AttacheHomeWidget()
         AttacheLiveActivity()
     }
 }

@@ -23,12 +23,16 @@ The bridge is deliberately thin:
   jsonl for substring hits.
 - **Approvals + rules** — omp emits approval prompts as extension-UI `select`
   requests (`Allow tool: …` / Approve / Deny). The bridge parses them, holds
-  them pending, answers when any surface (app, notification, rule) resolves,
-  and owns "always allow" rules — omp itself has no such RPC, so this is a
-  bridge feature by design, keeping rule storage inspectable at
-  `~/.attache/rules.json`.
+  them pending, answers when any surface (app, notification, rule, or the
+  approval timeout) resolves, and owns "always allow" rules — omp itself has
+  no such RPC, so this is a bridge feature by design, keeping rule storage
+  inspectable at `~/.attache/rules.json`.
 - **Auth** — single-use pairing codes → per-device bearer tokens (hashed at
   rest). See README "Security model".
+- **Push gating** — offline push fires per session: the bridge pushes an event
+  only when that session has no attached socket, never when the bridge as a
+  whole has no clients. A phone attached to session A still hears session B's
+  approval as a push.
 
 Anything omp can express, the app should render; anything the app can't render
 yet still flows through the `stream` event so nothing is silently dropped.
@@ -66,9 +70,26 @@ design (`UIUserInterfaceStyle: Dark`).
 
 - **Subagent steering** — omp has no direct subagent-steer RPC; the bridge
   routes steers through the primary agent with an explicit visible prefix.
-- **Branching** — `branch` needs an omp entry id; the app currently exposes
-  branch points only for turns it observed live. Mapping stored-history entry
-  ids is a straightforward follow-up.
+- **Branching** — branch points come from the session jsonl via `get_entries`:
+  live sessions read the snapshot, stored sessions read the file directly, so
+  branching never requires live observation. The branch result itself still
+  goes through omp's `branch` RPC, which needs the entry id.
+- **iPad split view** — on regular size class the app starts in a
+  `NavigationSplitView` (sessions sidebar | stream detail). The detail column
+  reuses the iPhone navigation stack, so every flow behaves identically on
+  both form factors; only the entry point differs.
+- **Home-screen widgets** — the app ships a WidgetKit extension containing a
+  home-screen widget and the Live Activity, both fed by snapshots the app
+  publishes. They are read-only status surfaces; no widget interaction.
+- **Notification Service Extension** — shipped in
+  `ios/AttacheNotificationService`. It decrypts APNs pushes with the per-device
+  key exchanged at pair time and re-renders them while the app is suspended;
+  approvals reuse the app's APPROVAL category. It holds no secrets of its own
+  beyond the app-group mirror of the push key and host (see
+  docs/notifications.md).
+- **Multi-machine support** — the app can hold several paired machines at
+  once. Each machine record keeps its own token, push registrations, and
+  session routing; the bridge knows nothing about other machines.
 - **Approval "risk" tiers** — omp doesn't transmit its internal tier over the
   extension-UI channel, so the bridge infers risk from the tool name, the
   prompt's `Reason:` line, and destructive-command heuristics. Treat it as a
@@ -76,6 +97,8 @@ design (`UIUserInterfaceStyle: Dark`).
 - **ATS** — the app allows cleartext WebSockets because tailnet addresses
   (100.64.0.0/10) can't be expressed as ATS domain exceptions; the transport
   is WireGuard-encrypted underneath. `tailscale serve` gives wss:// if wanted.
-- **Live Activity / Dynamic Island** — designed (see the system-surfaces frame
-  in `design/`), not yet implemented; requires a widget extension target and,
-  for updates while suspended, the push relay from `docs/notifications.md`.
+- **Live Activity / Dynamic Island** — updates are local-only while the app
+  runs (ActivityKit). The app registers live-activity push-to-start tokens
+  with the bridge, but the bridge sends no `liveactivity` pushes yet, so
+  updating an activity while suspended remains future. The APNs relay itself
+  (Tier 3) is implemented — see docs/notifications.md.

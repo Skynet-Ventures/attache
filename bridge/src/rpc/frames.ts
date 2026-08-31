@@ -74,6 +74,8 @@ export class RpcFrameDecoder {
 		}
 		if (this.chunkParts.length < this.chunkExpected) return null;
 
+		// Capture the declared size before resetChunks() clears the fields.
+		const declared = this.chunkDeclaredBytes;
 		const whole = new Uint8Array(this.chunkBytes);
 		let off = 0;
 		for (const part of this.chunkParts) {
@@ -81,7 +83,7 @@ export class RpcFrameDecoder {
 			off += part.byteLength;
 		}
 		this.resetChunks();
-		if (this.chunkDeclaredBytes !== 0 && whole.byteLength !== this.chunkDeclaredBytes) {
+		if (declared !== 0 && whole.byteLength !== declared) {
 			// byteLength mismatch: reject per spec.
 			return null;
 		}

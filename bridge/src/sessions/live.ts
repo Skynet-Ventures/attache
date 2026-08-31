@@ -3,44 +3,90 @@
  * state snapshot, normalizes events for the app, and intercepts approvals.
  */
 
+import { mkdtemp, readFile, stat, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { OmpProcess } from "../rpc/omp-process";
+import { readSessionEntries } from "./store";
 import { isApprovalSelect, parseApproval, RuleStore } from "../approvals";
+import { ApprovalTimer } from "../approval-timer";
+import { getApprovalMode } from "../config";
+import { drainMessages, MESSAGES_PAGE_LIMIT, type DrainOverrides, type MessagesPageResult } from "../messages";
+import { ProtocolError } from "../errors";
 import type {
 	AdvisorNote,
+	ApprovalMode,
 	ApprovalRequest,
 	PromptMode,
 	RpcExtensionUIRequest,
 	RpcFrame,
+	RpcResponseFrame,
 	SessionState,
 	ServerEvent,
+	SteeringMode,
+	InterruptMode,
 	ThinkingLevel,
 	Verdict,
 } from "../types";
 
+/**
+ * The subset of OmpProcess the session uses — injectable in tests so the
+ * session's approval/forwarding behavior can be exercised with a stub.
+ */
+export interface SessionProc {
+	onExit: ((code: number) => void) | null;
+	start(): Promise<void>;
+	subscribe(listener: (frame: RpcFrame) => void): () => void;
+	request(command: Record<string, unknown>, timeoutMs?: number): Promise<RpcResponseFrame>;
+	write(frame: Record<string, unknown>): void;
+	dispose(): void;
+	kill(): void;
+}
+
 const ADVISORY_RE =
 	/<advisory(?:\s+advisor="([^"]*)")?(?:\s+severity="([^"]*)")?[^>]*>([\s\S]*?)<\/advisory>/g;
+
+/** Validate an inbound queue-mode value; unknown values fall back to the omp default. */
+function normalizeSteeringMode(v: unknown): SteeringMode {
+	return v === "all" || v === "one-at-a-time" ? v : "one-at-a-time";
+}
+
+/** Validate an inbound interrupt-mode value; unknown values fall back to the omp default. */
+function normalizeInterruptMode(v: unknown): InterruptMode {
+	return v === "immediate" || v === "wait" ? v : "immediate";
+}
 
 export type SessionEventSink = (event: ServerEvent) => void;
 
 export class LiveSession {
 	readonly id: string;
-	readonly proc: OmpProcess;
+	readonly proc: SessionProc;
 	private readonly sinks = new Set<SessionEventSink>();
 	private seq = 0;
 	private turn = 0;
 	private costUsd: number | null = null;
 	private state: SessionState | null = null;
 	private pendingApprovals = new Map<string, ApprovalRequest>();
+	private approvalModeOverride: ApprovalMode | null = null;
+	private approvalTimers: ApprovalTimer;
 	private textDeltaBuffer: { frame: Record<string, unknown>; timer: ReturnType<typeof setTimeout> } | null = null;
 	onDispose: (() => void) | null = null;
 
 	constructor(
 		readonly cwd: string,
 		private readonly rules: RuleStore,
-		opts: { resume?: string; ompBin?: string } = {},
+		opts: { resume?: string; ompBin?: string; proc?: SessionProc; approvalTimeoutMs?: number } = {},
 	) {
 		this.id = crypto.randomUUID();
-		this.proc = new OmpProcess({ cwd, resume: opts.resume, ompBin: opts.ompBin });
+		this.proc = opts.proc ?? new OmpProcess({ cwd, resume: opts.resume, ompBin: opts.ompBin });
+		this.approvalTimers = new ApprovalTimer(opts.approvalTimeoutMs ?? 0, approvalId =>
+			this.timeoutApproval(approvalId),
+		);
+	}
+
+	/** Immediately kill the underlying omp process (orphan cleanup). */
+	kill(): void {
+		this.proc.kill();
 	}
 
 	async start(): Promise<void> {
@@ -104,6 +150,48 @@ export class LiveSession {
 		if (!res.success) throw new Error(res.error ?? "abort failed");
 	}
 
+	/** omp `handoff` passthrough; returns omp's result data verbatim. */
+	async handoff(instructions?: string): Promise<unknown> {
+		const res = await this.proc.request({
+			type: "handoff",
+			...(instructions ? { customInstructions: instructions } : {}),
+		});
+		if (!res.success) throw new Error(res.error ?? "handoff failed");
+		return res.data;
+	}
+
+	/**
+	 * Set per-session queue/interrupt modes via omp's set_*_mode RPCs. Only
+	 * the modes provided are sent; the result echoes the final computed modes
+	 * (requested values over the current session state).
+	 */
+	async setQueueModes(opts: {
+		steeringMode?: SteeringMode;
+		followUpMode?: SteeringMode;
+		interruptMode?: InterruptMode;
+	}): Promise<{ steeringMode: SteeringMode; followUpMode: SteeringMode; interruptMode: InterruptMode }> {
+		if (opts.steeringMode) {
+			const res = await this.proc.request({ type: "set_steering_mode", mode: opts.steeringMode });
+			if (!res.success) throw new Error(res.error ?? "set_steering_mode failed");
+		}
+		if (opts.followUpMode) {
+			const res = await this.proc.request({ type: "set_follow_up_mode", mode: opts.followUpMode });
+			if (!res.success) throw new Error(res.error ?? "set_follow_up_mode failed");
+		}
+		if (opts.interruptMode) {
+			const res = await this.proc.request({ type: "set_interrupt_mode", mode: opts.interruptMode });
+			if (!res.success) throw new Error(res.error ?? "set_interrupt_mode failed");
+		}
+		const current = this.state;
+		const finalModes = {
+			steeringMode: opts.steeringMode ?? current?.steeringMode ?? "one-at-a-time",
+			followUpMode: opts.followUpMode ?? current?.followUpMode ?? "one-at-a-time",
+			interruptMode: opts.interruptMode ?? current?.interruptMode ?? "immediate",
+		};
+		await this.refreshState();
+		return finalModes;
+	}
+
 	async setModel(provider: string, modelId: string): Promise<void> {
 		const res = await this.proc.request({ type: "set_model", provider, modelId });
 		if (!res.success) throw new Error(res.error ?? "set_model failed");
@@ -126,10 +214,61 @@ export class LiveSession {
 		if (!res.success) throw new Error(res.error ?? "compact failed");
 	}
 
-	async getMessagesPage(cursor?: string, limit?: number): Promise<unknown> {
-		const res = await this.proc.request({ type: "get_messages_page", cursor, limit });
-		if (!res.success) throw new Error(res.error ?? "get_messages_page failed");
-		return res.data;
+	/**
+	 * Ask omp to export the transcript HTML to a temp file, then read it back
+	 * base64-encoded. Files over the 20MB cap surface a `too_large` error so
+	 * the app can offer the raw file instead.
+	 */
+	async exportHtml(): Promise<{ html: string }> {
+		const exportDir = await mkdtemp(join(tmpdir(), "attache-export-"));
+		const outputPath = join(exportDir, "session.html");
+		const CAP = 20 * 1024 * 1024;
+		try {
+			const res = await this.proc.request({ type: "export_html", outputPath }, 600_000);
+			if (!res.success) throw new Error(res.error ?? "export_html failed");
+			const size = (await stat(outputPath)).size;
+			if (size > CAP) {
+				throw new ProtocolError("too_large", `exported html is ${size} bytes (20MB cap)`);
+			}
+			return { html: (await readFile(outputPath)).toString("base64") };
+		} finally {
+			await rm(exportDir, { recursive: true, force: true });
+		}
+	}
+
+	/**
+	 * Drain every page of omp's `get_messages_page` for the full transcript.
+	 * `session_busy` is retried with backoff (≤~10s) then surfaced as a
+	 * `session_busy` result; a `stale_cursor` restarts the walk once from the
+	 * start and surfaces `stale_cursor` if it recurs.
+	 *
+	 * `overrides` is a test seam for the backoff/sleep policy (see
+	 * drainMessages) — the wire dispatch never sets it.
+	 */
+	async getMessages(
+		inputCursor?: string,
+		limit?: number,
+		overrides: DrainOverrides = {},
+	): Promise<{ messages: unknown[]; totalMessages: number }> {
+		const fetchPage = async (cursor: string | undefined, pageLimit: number): Promise<MessagesPageResult> => {
+			const res = await this.proc.request({
+				type: "get_messages_page",
+				cursor,
+				limit: limit ?? pageLimit,
+			});
+			if (!res.success) {
+				if (res.code === "session_busy" || res.code === "stale_cursor") {
+					return { ok: false, error: res.code };
+				}
+				throw new Error(res.error ?? "get_messages_page failed");
+			}
+			const data = (res.data ?? {}) as { messages?: unknown[]; totalMessages?: number; nextCursor?: string };
+			if (!Array.isArray(data.messages)) throw new Error("get_messages_page returned no messages");
+			return { ok: true, messages: data.messages, totalMessages: data.totalMessages, nextCursor: data.nextCursor };
+		};
+		const result = await drainMessages({ fetchPage, startCursor: inputCursor, ...overrides });
+		if (!result.ok) throw new ProtocolError(result.error, `history unavailable: ${result.error}`);
+		return { messages: result.messages, totalMessages: result.totalMessages };
 	}
 
 	/**
@@ -140,38 +279,7 @@ export class LiveSession {
 	async getEntries(): Promise<Array<{ id: string; role: string; preview: string; timestamp: string }>> {
 		const file = this.state?.sessionFile;
 		if (!file) return [];
-		let text: string;
-		try {
-			text = await Bun.file(file).text();
-		} catch {
-			return [];
-		}
-		const out: Array<{ id: string; role: string; preview: string; timestamp: string }> = [];
-		for (const line of text.split("\n")) {
-			if (!line.includes('"type":"message"')) continue;
-			try {
-				const entry = JSON.parse(line) as {
-					type?: string;
-					id?: string;
-					timestamp?: string;
-					message?: { role?: string; content?: Array<{ type?: string; text?: string }> };
-				};
-				if (entry.type !== "message" || !entry.id) continue;
-				const role = entry.message?.role ?? "";
-				if (role !== "user" && role !== "assistant") continue;
-				const textBlock = entry.message?.content?.find(b => b.type === "text" && b.text?.trim());
-				if (!textBlock?.text) continue;
-				out.push({
-					id: entry.id,
-					role,
-					preview: textBlock.text.trim().slice(0, 80),
-					timestamp: entry.timestamp ?? "",
-				});
-			} catch {
-				/* torn line */
-			}
-		}
-		return out;
+		return readSessionEntries(file);
 	}
 
 	/**
@@ -218,13 +326,14 @@ export class LiveSession {
 		await this.steer(`[steer for subagent ${subagentId}] ${message}`);
 	}
 
-	async resolveApproval(approvalId: string, verdict: Verdict): Promise<void> {
+	async resolveApproval(approvalId: string, verdict: Verdict, scope?: unknown): Promise<void> {
 		const approval = this.pendingApprovals.get(approvalId);
 		if (!approval) throw new Error(`No pending approval ${approvalId}`);
 		this.pendingApprovals.delete(approvalId);
+		this.approvalTimers.cancel(approvalId);
 		let ruleNote: string | undefined;
 		if (verdict === "allow_always") {
-			const rule = await this.rules.addFromApproval(approval);
+			const rule = await this.rules.addFromApproval(approval, scope);
 			ruleNote = rule.note;
 		}
 		this.proc.write({
@@ -247,6 +356,7 @@ export class LiveSession {
 			const res = await this.proc.request({ type: "get_state" });
 			if (!res.success) return this.state;
 			const d = res.data as Record<string, any>;
+			const approvalMode = this.approvalModeOverride ?? (await getApprovalMode().catch(() => null));
 			this.state = {
 				sessionId: this.id,
 				sessionName: d.sessionName ?? "",
@@ -261,7 +371,12 @@ export class LiveSession {
 				turn: this.turn,
 				messageCount: d.messageCount ?? 0,
 				queuedMessageCount: d.queuedMessageCount ?? 0,
-				approvalMode: null,
+				approvalMode,
+				fastModeEnabled: !!d.fastModeEnabled,
+				fastModeActive: !!d.fastModeActive,
+				steeringMode: normalizeSteeringMode(d.steeringMode),
+				followUpMode: normalizeSteeringMode(d.followUpMode),
+				interruptMode: normalizeInterruptMode(d.interruptMode),
 				todoPhases: d.todoPhases ?? [],
 			};
 			this.emit({ type: "session_state", state: this.state });
@@ -271,7 +386,45 @@ export class LiveSession {
 		}
 	}
 
+	/**
+	 * Store a per-session approval-mode override (applied to bridge-side
+	 * auto-approval and reported in session_state). Omit to fall back to the
+	 * global config value.
+	 */
+	setApprovalModeOverride(mode: ApprovalMode | null): void {
+		this.approvalModeOverride = mode;
+		void this.refreshState();
+	}
+
+	async setSessionName(name: string): Promise<void> {
+		const res = await this.proc.request({ type: "set_session_name", name });
+		if (!res.success) throw new Error(res.error ?? "set_session_name failed");
+		await this.refreshState();
+	}
+
+	async getSessionStats(): Promise<unknown> {
+		const res = await this.proc.request({ type: "get_session_stats" });
+		if (!res.success) throw new Error(res.error ?? "get_session_stats failed");
+		return res.data;
+	}
+
+	/** Toggle omp fast mode; reports the computed { enabled, active } state. */
+	async setFastMode(enabled: boolean): Promise<{ enabled: boolean; active: boolean }> {
+		const res = await this.proc.request({ type: "set_fast_mode", enabled });
+		if (res.success && res.data !== undefined && res.data !== null && typeof res.data === "object") {
+			const d = res.data as { enabled?: unknown; active?: unknown };
+			await this.refreshState();
+			return { enabled: Boolean(d.enabled), active: Boolean(d.active) };
+		}
+		// Unsupported model: omp rejects with success:false. Report the intent
+		// with a non-active result; get_state carries the authoritative state.
+		await this.refreshState();
+		return { enabled, active: false };
+	}
+
 	dispose(): void {
+		this.approvalTimers.clear();
+		this.flushDeltas();
 		this.proc.dispose();
 	}
 
@@ -285,13 +438,15 @@ export class LiveSession {
 					this.handleApproval(req);
 					return;
 				}
-				// Non-approval dialogs: cancel-with-default rather than hang the
-				// agent; notify/setStatus flow through as stream events.
-				if (req.method === "select" || req.method === "confirm" || req.method === "input" || req.method === "editor") {
-					this.forward(frame);
-					return;
-				}
+				// All other extension UI requests are forwarded verbatim. The app
+				// answers via `ui_response`, or omp cancels on its own timeout —
+				// the bridge does not auto-resolve non-approval dialogs.
 				this.forward(frame);
+				return;
+			}
+			case "available_commands_update": {
+				const commands = "commands" in frame ? frame.commands : undefined;
+				this.emit({ type: "commands", sessionId: this.id, commands });
 				return;
 			}
 			case "turn_start":
@@ -336,7 +491,7 @@ export class LiveSession {
 
 	private handleApproval(req: RpcExtensionUIRequest): void {
 		const approval = parseApproval(this.id, req);
-		const rule = this.rules.match(approval);
+		const rule = this.rules.match(approval, { cwd: this.cwd });
 		if (rule) {
 			this.proc.write({ type: "extension_ui_response", id: req.id, value: "Approve" });
 			this.emit({
@@ -349,8 +504,38 @@ export class LiveSession {
 			});
 			return;
 		}
+		// Per-session yolo mode auto-approves anything the agent still asks
+		// about (omp normally suppresses approvals in yolo; this is the
+		// belt-and-suspenders path when it does not).
+		if (this.approvalModeOverride === "yolo") {
+			this.proc.write({ type: "extension_ui_response", id: req.id, value: "Approve" });
+			this.emit({
+				type: "approval_resolved",
+				sessionId: this.id,
+				approvalId: approval.id,
+				verdict: "allow",
+				by: "mode",
+			});
+			return;
+		}
 		this.pendingApprovals.set(approval.id, approval);
+		this.approvalTimers.start(approval.id);
 		this.emit({ type: "approval_request", approval });
+	}
+
+	/** Expired pending approval: answer omp with Deny and report the timeout. */
+	private timeoutApproval(approvalId: string): void {
+		const approval = this.pendingApprovals.get(approvalId);
+		if (!approval) return; // resolved concurrently
+		this.pendingApprovals.delete(approvalId);
+		this.proc.write({ type: "extension_ui_response", id: approvalId, value: "Deny" });
+		this.emit({
+			type: "approval_resolved",
+			sessionId: this.id,
+			approvalId,
+			verdict: "deny",
+			by: "timeout",
+		});
 	}
 
 	private scanForAdvisory(frame: Record<string, unknown>): void {

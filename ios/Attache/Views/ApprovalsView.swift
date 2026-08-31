@@ -74,7 +74,12 @@ private struct QueueCard: View {
                 Spacer()
             }
             .padding(.bottom, 7)
-            if let command = approval.command {
+            if !approval.diffLines.isEmpty {
+                // Proper review: per-file collapsible sections, tinting, scroll.
+                DiffSectionsView(sections: DiffSections.sections(from: approval.diffLines), fontSize: 10)
+                    .padding(.bottom, 5)
+            } else if let command = approval.command {
+                // No diff detected — plain text blob, exactly as before.
                 Text(command)
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.text)
@@ -84,22 +89,6 @@ private struct QueueCard: View {
                     .background(Theme.codeBlock)
                     .clipShape(RoundedRectangle(cornerRadius: 7))
                     .padding(.bottom, 5)
-            }
-            if !approval.diffLines.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(approval.diffLines) { line in
-                        Text(line.text)
-                            .font(Theme.mono(10))
-                            .foregroundStyle(line.kind == .add ? Theme.diffAddText : Color(hex: 0xFF7A6B))
-                            .lineSpacing(4)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.codeBlock)
-                .clipShape(RoundedRectangle(cornerRadius: 7))
-                .padding(.bottom, 5)
             }
             Text(approval.reason)
                 .font(Theme.sans(11))
@@ -119,6 +108,10 @@ private struct QueueCard: View {
                 ApprovalButtons(height: 30) { verdict in
                     withAnimation(.easeOut(duration: 0.3)) {
                         app.engine?.resolveApproval(id: approval.id, verdict: verdict)
+                    }
+                } onAlways: { scope in
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        app.engine?.resolveApproval(id: approval.id, verdict: .allowAlways, scope: scope)
                     }
                 }
             }

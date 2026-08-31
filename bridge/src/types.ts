@@ -7,6 +7,9 @@
 
 export const PROTOCOL_VERSION = 1;
 
+/** Machine-readable error codes on bridge result frames. */
+export type ErrorCode = "protocol_mismatch" | "revoked" | "session_busy" | "stale_cursor" | "too_large";
+
 // ---------------------------------------------------------------------------
 // omp RPC wire types (subset we consume; see oh-my-pi docs/rpc.md)
 // ---------------------------------------------------------------------------
@@ -81,6 +84,17 @@ export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhi
 export type ApprovalMode = "always-ask" | "write" | "yolo";
 export type Verdict = "allow" | "allow_always" | "deny";
 export type PromptMode = "chat" | "plan" | "goal" | "loop";
+export type SteeringMode = "all" | "one-at-a-time";
+export type InterruptMode = "immediate" | "wait";
+
+/**
+ * The scope an always-allow rule applies to. Legacy rules (no `scope` field)
+ * are treated as `{ kind: "global" }` for back-compat.
+ */
+export type RuleScope =
+	| { kind: "global" }
+	| { kind: "cwd"; cwd: string }
+	| { kind: "session"; sessionId: string };
 
 export interface ClientCommand {
 	id?: string;
@@ -94,6 +108,14 @@ export interface ResultFrame {
 	ok: boolean;
 	data?: unknown;
 	error?: string;
+	code?: ErrorCode;
+}
+
+export interface DeviceInfo {
+	deviceId: string;
+	name: string;
+	createdAt: string;
+	lastSeen?: string;
 }
 
 export interface MachineInfo {
@@ -148,6 +170,11 @@ export interface SessionState {
 	messageCount: number;
 	queuedMessageCount: number;
 	approvalMode: ApprovalMode | null;
+	fastModeEnabled: boolean;
+	fastModeActive: boolean;
+	steeringMode: SteeringMode;
+	followUpMode: SteeringMode;
+	interruptMode: InterruptMode;
 	todoPhases: unknown[];
 }
 
@@ -179,6 +206,36 @@ export interface AlwaysRule {
 	pattern: string | null;
 	createdAt: string;
 	note: string;
+	/** Which sessions the rule applies to; defaults to global for legacy rules. */
+	scope: RuleScope;
+}
+
+// ---------------------------------------------------------------------------
+// Cost summary (get_cost_summary)
+// ---------------------------------------------------------------------------
+
+export interface CostDay {
+	/** Local calendar date, YYYY-MM-DD. */
+	date: string;
+	costUSD: number;
+	tokensIn: number;
+	tokensOut: number;
+	/** Distinct sessions with metered usage on this date. */
+	sessions: number;
+}
+
+export interface CostByProject {
+	/** Custom project id when the session cwd is claimed, null otherwise. */
+	projectId: string | null;
+	cwd: string;
+	costUSD: number;
+	/** Distinct sessions with metered usage in this project. */
+	sessions: number;
+}
+
+export interface CostSummary {
+	days: CostDay[];
+	byProject: CostByProject[];
 }
 
 export type ServerEvent =
@@ -192,10 +249,11 @@ export type ServerEvent =
 			sessionId: string;
 			approvalId: string;
 			verdict: Verdict | "deny" | "allow";
-			by: "app" | "tui" | "rule" | "timeout";
+			by: "app" | "tui" | "rule" | "timeout" | "mode";
 			ruleNote?: string;
 	  }
 	| { type: "subagent"; sessionId: string; kind: string; frame: Record<string, unknown> }
 	| { type: "advisor"; note: AdvisorNote }
 	| { type: "sessions_changed" }
+	| { type: "commands"; sessionId: string; commands: unknown }
 	| { type: "bye"; reason: string };

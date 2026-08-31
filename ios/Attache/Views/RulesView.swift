@@ -96,9 +96,12 @@ struct RulesView: View {
                     .font(Theme.mono(10.5))
                     .foregroundStyle(Theme.text(0.6))
                     .lineLimit(1)
-                Text("added \(String(rule.createdAt.prefix(10)))")
-                    .font(Theme.mono(9))
-                    .foregroundStyle(Theme.text(0.3))
+                HStack(spacing: 6) {
+                    Text("added \(String(rule.createdAt.prefix(10)))")
+                        .font(Theme.mono(9))
+                        .foregroundStyle(Theme.text(0.3))
+                    scopeBadge(rule.scope)
+                }
             }
             Spacer()
             Button {
@@ -121,5 +124,23 @@ struct RulesView: View {
     private func reload() async {
         rules = await app.engine?.listRules() ?? []
         loading = false
+    }
+
+    /// Scope badge (contract F): makes the rule's reach visible at a glance.
+    private func scopeBadge(_ scope: RuleScope) -> some View {
+        let (label, color): (String, Color) = switch scope.kind {
+        case .global:
+            ("everywhere", Theme.text(0.45))
+        case .cwd:
+            ("project", Theme.accent)
+        case .session:
+            ("this session", Theme.warning)
+        }
+        return Text(label)
+            .font(Theme.mono(8.5, .semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(color.opacity(0.4)))
     }
 }

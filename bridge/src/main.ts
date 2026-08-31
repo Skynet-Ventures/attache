@@ -3,8 +3,9 @@
  * attache-bridge CLI.
  *
  *   attache-bridge serve [--port 8674] [--host 0.0.0.0] [--omp <path>]
- *   attache-bridge pair          # print a fresh pairing code for a running setup
- *   attache-bridge devices       # list paired devices
+ *   attache-bridge pair           # print the pairing code a running bridge issued (or serve guidance)
+ *   attache-bridge devices        # list paired devices
+ *   attache-bridge revoke <id>    # revoke a device token immediately
  */
 
 import { networkInterfaces } from "node:os";
@@ -53,12 +54,29 @@ if (command === "serve") {
 	const { url, code } = await server.start();
 	console.log(`attache-bridge listening on ${url}`);
 	printPairingBlock(code, port);
+
+	// Graceful shutdown: announce `bye` to every client before closing so the
+	// app treats this as a clean disconnect instead of a reconnect storm.
+	for (const signal of ["SIGINT", "SIGTERM"] as const) {
+		process.once(signal, () => {
+			console.log(`[bridge] ${signal}, shutting down gracefully`);
+			void server.shutdown("bridge shutting down").finally(() => process.exit(0));
+		});
+	}
 } else if (command === "pair") {
-	// Pairing codes live in the serve process; this subcommand just reminds
-	// the user where to look. (Kept as a distinct command so `--help` output
-	// matches the app's copy.)
-	console.log("Run `attache-bridge serve` — it prints a pairing code on startup.");
-	console.log("A running bridge re-issues a code whenever no valid one is active.");
+	const auth = new Auth();
+	await auth.load();
+	const code = auth.persistedCode;
+	if (code) {
+		// A serve process issued (and persisted) this code within the TTL —
+		// print it so the user need not dig through the serve log.
+		printPairingBlock(code, Number(flag("port", String(DEFAULT_PORT))));
+		console.log(`  (code copied from the running bridge's state — single-use, expires in 5 minutes.)`);
+	} else {
+		console.log("No active pairing code on disk.");
+		console.log("Run `attache-bridge serve` — it prints a fresh pairing code on startup,");
+		console.log("or restart a running bridge to re-issue one. Codes are single-use.");
+	}
 } else if (command === "devices") {
 	const auth = new Auth();
 	await auth.load();
@@ -67,7 +85,22 @@ if (command === "serve") {
 	for (const d of devices) {
 		console.log(`${d.id}  ${d.name}  paired ${d.createdAt}  last seen ${d.lastSeenAt}`);
 	}
+} else if (command === "revoke") {
+	const deviceId = process.argv[3];
+	if (!deviceId) {
+		console.log("usage: attache-bridge revoke <deviceId>");
+		process.exit(1);
+	}
+	const auth = new Auth();
+	await auth.load();
+	const revoked = await auth.revoke(deviceId);
+	if (revoked) {
+		console.log(`Revoked device ${deviceId}. Its live sessions close with result code \`revoked\`.`);
+	} else {
+		console.log(`No paired device with id ${deviceId}.`);
+		process.exit(1);
+	}
 } else {
-	console.log("usage: attache-bridge [serve|pair|devices] [--port N] [--host H] [--omp PATH]");
+	console.log("usage: attache-bridge [serve|pair|devices|revoke <id>] [--port N] [--host H] [--omp PATH]");
 	process.exit(1);
 }

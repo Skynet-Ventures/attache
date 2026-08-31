@@ -9,14 +9,18 @@ import { join } from "node:path";
 import type { ServerWebSocket } from "bun";
 import { Auth } from "./auth";
 import { RuleStore } from "./approvals";
+import { loadBridgeConfig, type BridgeConfig } from "./bridge-config";
+import { ProtocolError } from "./errors";
 import { ProjectStore } from "./projects";
 import { Push } from "./push";
 import { LiveSession } from "./sessions/live";
-import { groupByProject, listStoredSessions, searchStoredSessions } from "./sessions/store";
+import { groupByProject, listStoredSessions, readSessionEntries, searchStoredSessions } from "./sessions/store";
+import { getCostSummary } from "./sessions/cost";
 import { getApprovalMode, getEnabledModels, getOmpSummary, getRoles, setApprovalModeGlobal, setRole } from "./config";
 import { sendMagicPacket } from "./wol";
 import {
 	PROTOCOL_VERSION,
+	type ApprovalMode,
 	type ClientCommand,
 	type MachineInfo,
 	type ServerEvent,
@@ -43,16 +47,24 @@ export interface ServeOptions {
 export class BridgeServer {
 	readonly auth = new Auth();
 	readonly rules = new RuleStore();
-	readonly push = new Push();
+	readonly push = new Push(deviceId => this.auth.pushKeyFor(deviceId));
 	readonly projects = new ProjectStore();
 	private readonly sessions = new Map<string, LiveSession>();
 	private readonly sockets = new Set<WS>();
 	private readonly startedAt = Date.now();
 	private ompVersion = "unknown";
+	private bun: Bun.Server<SocketData> | null = null;
+	private bridgeConfig: BridgeConfig = { approvalTimeoutSec: 300, apnsRelayUrl: null, apnsRelayBearer: null };
 
 	constructor(private readonly opts: ServeOptions) {}
 
 	async start(): Promise<{ url: string; code: string }> {
+		this.bridgeConfig = await loadBridgeConfig();
+		this.push.setApnsRelay(
+			this.bridgeConfig.apnsRelayUrl
+				? { url: this.bridgeConfig.apnsRelayUrl, bearer: this.bridgeConfig.apnsRelayBearer ?? undefined }
+				: null,
+		);
 		await Promise.all([this.auth.load(), this.rules.load(), this.push.load(), this.projects.load()]);
 		try {
 			const proc = Bun.spawn([this.opts.ompBin ?? "omp", "--version"], { stdout: "pipe" });
@@ -77,8 +89,36 @@ export class BridgeServer {
 			},
 		});
 
-		const code = this.auth.issueCode();
+		const code = await this.auth.issueCode();
+		this.bun = server;
 		return { url: `http://${server.hostname}:${server.port}`, code };
+	}
+
+	/**
+	 * Graceful shutdown: tell every client why we're leaving before closing,
+	 * dispose live sessions, then stop the HTTP server. The app treats `bye`
+	 * as a clean disconnect (no reconnect/backoff storm).
+	 */
+	async shutdown(reason = "shutdown"): Promise<void> {
+		this.broadcast({ type: "bye", reason });
+		for (const ws of [...this.sockets]) {
+			try {
+				ws.close(1000, "bye");
+			} catch {
+				/* already closed */
+			}
+		}
+		this.sockets.clear();
+		for (const session of [...this.sessions.values()]) session.dispose();
+		this.sessions.clear();
+		if (this.bun) {
+			try {
+				this.bun.stop();
+			} catch {
+				/* already stopped */
+			}
+			this.bun = null;
+		}
 	}
 
 	// ---------------------------------------------------------------- HTTP --
@@ -97,8 +137,14 @@ export class BridgeServer {
 			const body = (await req.json().catch(() => ({}))) as { code?: string; deviceName?: string };
 			const token = await this.auth.redeemCode(body.code ?? "", body.deviceName ?? "iOS device");
 			if (!token) return Response.json({ error: "invalid or expired code" }, { status: 403 });
+			const device = await this.auth.verify(token);
+			const pushKey = device ? this.auth.pushKeyFor(device.id) : null;
 			console.log(`[bridge] paired device "${body.deviceName ?? "iOS device"}"`);
-			return Response.json({ token, machine: this.machineInfo() });
+			return Response.json({
+				token,
+				machine: this.machineInfo(),
+				...(pushKey ? { pushKey } : {}),
+			});
 		}
 		if (url.pathname === "/verdict" && req.method === "POST") {
 			const body = (await req.json().catch(() => ({}))) as {
@@ -158,18 +204,35 @@ export class BridgeServer {
 			const data = await this.dispatch(ws, cmd);
 			this.sendEvent(ws, { type: "result", id: cmd.id, ok: true, ...(data === undefined ? {} : { data }) });
 		} catch (err) {
+			const code = err instanceof ProtocolError ? err.code : undefined;
 			this.sendEvent(ws, {
 				type: "result",
 				id: cmd.id,
 				ok: false,
 				error: err instanceof Error ? err.message : String(err),
+				...(code === undefined ? {} : { code }),
 			});
+			if (code === "protocol_mismatch") {
+				try {
+					ws.close(1000, "protocol_mismatch");
+				} catch {
+					/* already closed */
+				}
+			}
 		}
 	}
 
 	private async dispatch(ws: WS, cmd: ClientCommand): Promise<unknown> {
 		switch (cmd.type) {
-			case "hello":
+			case "hello": {
+				// Unsupported protocol major → coded failure, then the socket is
+				// closed so the app can surface "update required".
+				if (cmd.protocolVersion !== PROTOCOL_VERSION) {
+					throw new ProtocolError(
+						"protocol_mismatch",
+						`unsupported protocol version: ${String(cmd.protocolVersion)} (bridge speaks ${PROTOCOL_VERSION})`,
+					);
+				}
 				return {
 					protocolVersion: PROTOCOL_VERSION,
 					machine: this.machineInfo(),
@@ -177,6 +240,7 @@ export class BridgeServer {
 					approvalMode: await getApprovalMode().catch(() => null),
 					enabledModels: await getEnabledModels().catch(() => []),
 				};
+			}
 
 			case "list_sessions": {
 				const stored = await listStoredSessions();
@@ -263,13 +327,28 @@ export class BridgeServer {
 						cwd = join(process.env.HOME ?? "/", "scratch");
 						await mkdir(cwd, { recursive: true });
 					}
-					session = new LiveSession(cwd, this.rules, { resume, ompBin: this.opts.ompBin });
+					session = new LiveSession(cwd, this.rules, {
+						resume,
+						ompBin: this.opts.ompBin,
+						approvalTimeoutMs: this.bridgeConfig.approvalTimeoutSec * 1000,
+					});
 					const s = session;
 					session.onDispose = () => {
 						this.sessions.delete(s.id);
 						this.broadcast({ type: "sessions_changed" });
 					};
-					await session.start();
+					// Session-level offline-notification hook — independent of
+					// any socket attachment so pushes work when nothing is
+					// attached (per-session gating happens inside maybePush).
+					session.subscribe(event => this.maybePush(event));
+					try {
+						await session.start();
+					} catch (err) {
+						// Startup failed after omp was spawned — don't leak the
+						// child process into the session listing.
+						session.kill();
+						throw err;
+					}
 					this.sessions.set(session.id, session);
 					this.broadcast({ type: "sessions_changed" });
 				}
@@ -280,6 +359,36 @@ export class BridgeServer {
 				for (const approval of session.approvals) {
 					this.sendEvent(ws, { type: "approval_request", approval });
 				}
+				return { sessionId: session.id };
+			}
+
+			case "new_session": {
+				// Spawn a fresh session, optionally forked from a stored session
+				// file (`parentSession` is the omp session path) or in an exact
+				// cwd. Result mirrors `attach`: the new session's id.
+				let cwd = typeof cmd.cwd === "string" && cmd.cwd.length > 0 ? cmd.cwd : process.env.HOME ?? "/";
+				const parentSession =
+					typeof cmd.parentSession === "string" && cmd.parentSession.length > 0
+						? cmd.parentSession
+						: undefined;
+				const session = new LiveSession(cwd, this.rules, {
+					resume: parentSession,
+					ompBin: this.opts.ompBin,
+					approvalTimeoutMs: this.bridgeConfig.approvalTimeoutSec * 1000,
+				});
+				session.onDispose = () => {
+					this.sessions.delete(session.id);
+					this.broadcast({ type: "sessions_changed" });
+				};
+				session.subscribe(event => this.maybePush(event));
+				try {
+					await session.start();
+				} catch (err) {
+					session.kill();
+					throw err;
+				}
+				this.sessions.set(session.id, session);
+				this.broadcast({ type: "sessions_changed" });
 				return { sessionId: session.id };
 			}
 
@@ -317,10 +426,19 @@ export class BridgeServer {
 			case "abort":
 				await this.requireSession(cmd).abort();
 				return {};
+			case "handoff":
+				// omp `handoff` passthrough; result data is returned verbatim.
+				return await this.requireSession(cmd).handoff(cmd.instructions as string | undefined);
+			case "set_queue_modes":
+				return await this.requireSession(cmd).setQueueModes({
+					steeringMode: cmd.steeringMode as never,
+					followUpMode: cmd.followUpMode as never,
+					interruptMode: cmd.interruptMode as never,
+				});
 
 			case "approval_verdict": {
 				const session = this.requireSession(cmd);
-				await session.resolveApproval(String(cmd.approvalId), cmd.verdict as Verdict);
+				await session.resolveApproval(String(cmd.approvalId), cmd.verdict as Verdict, cmd.scope);
 				return {};
 			}
 
@@ -338,7 +456,7 @@ export class BridgeServer {
 			}
 
 			case "get_messages":
-				return this.requireSession(cmd).getMessagesPage(
+				return this.requireSession(cmd).getMessages(
 					cmd.cursor as string | undefined,
 					cmd.limit as number | undefined,
 				);
@@ -362,8 +480,19 @@ export class BridgeServer {
 			case "branch":
 				await this.requireSession(cmd).branch(String(cmd.entryId));
 				return {};
-			case "get_entries":
+			case "get_entries": {
+				// Live sessions read from the session snapshot; stored sessions
+				// (explicit sessionPath or stored:<path> ids) read the jsonl
+				// directly so the app can branch without live observation.
+				const id = String(cmd.sessionId ?? "");
+				let sessionPath =
+					typeof cmd.sessionPath === "string" && cmd.sessionPath.length > 0
+						? cmd.sessionPath
+						: undefined;
+				if (!sessionPath && id.startsWith("stored:")) sessionPath = id.slice("stored:".length);
+				if (sessionPath) return { entries: await readSessionEntries(sessionPath) };
 				return { entries: await this.requireSession(cmd).getEntries() };
+			}
 
 			case "upload_file": {
 				const session = this.requireSession(cmd);
@@ -373,11 +502,18 @@ export class BridgeServer {
 			case "compact":
 				await this.requireSession(cmd).compact();
 				return {};
+			case "export_html":
+				return await this.requireSession(cmd).exportHtml();
 
 			case "get_roles":
 				return { roles: await getRoles() };
 			case "get_omp_summary":
 				return await getOmpSummary();
+			case "get_cost_summary":
+				return await getCostSummary({
+					days: cmd.days as number | undefined,
+					projects: this.projects.list(),
+				});
 			case "wake": {
 				await sendMagicPacket(String(cmd.mac ?? ""), cmd.address ? String(cmd.address) : undefined);
 				return {};
@@ -390,9 +526,59 @@ export class BridgeServer {
 						cmd.thinkingLevel as never,
 					),
 				};
-			case "set_approval_mode":
-				await setApprovalModeGlobal(cmd.mode as never);
+			case "set_approval_mode": {
+				const sessionId = typeof cmd.sessionId === "string" && cmd.sessionId.length > 0 ? cmd.sessionId : undefined;
+				if (sessionId) {
+					// Per-session override applied to bridge-side auto-approval.
+					this.requireSession(cmd).setApprovalModeOverride(cmd.mode as ApprovalMode);
+					return {};
+				}
+				// No sessionId → the global omp config as before.
+				await setApprovalModeGlobal(cmd.mode as ApprovalMode);
 				return {};
+			}
+
+			case "set_session_name": {
+				const name = String(cmd.name ?? "");
+				await this.requireSession(cmd).setSessionName(name);
+				return { name };
+			}
+			case "get_session_stats":
+				return await this.requireSession(cmd).getSessionStats();
+			case "set_fast_mode":
+				return await this.requireSession(cmd).setFastMode(cmd.enabled === true);
+
+			case "list_devices":
+				return {
+					devices: this.auth.listDevices().map(d => ({
+						deviceId: d.id,
+						name: d.name,
+						createdAt: d.createdAt,
+						...(d.lastSeenAt ? { lastSeen: d.lastSeenAt } : {}),
+					})),
+				};
+
+			case "revoke_device": {
+				const deviceId = String(cmd.deviceId ?? "");
+				const removed = await this.auth.revoke(deviceId);
+				if (!removed) throw new Error(`no such device: ${deviceId}`);
+				// Take down every live socket for that device. The revoking
+				// socket itself waits for its own ack to land first.
+				for (const s of this.sockets) {
+					if (s.data.deviceId !== deviceId) continue;
+					const closeRevoked = () => {
+						this.sendEvent(s, { type: "result", ok: false, error: "device revoked", code: "revoked" });
+						try {
+							s.close(1000, "revoked");
+						} catch {
+							/* already closed */
+						}
+					};
+					if (s === ws) setTimeout(closeRevoked, 0); // after this command's ack
+					else closeRevoked();
+				}
+				return { removed: true };
+			}
 
 			case "list_rules":
 				return { rules: this.rules.list() };
@@ -432,18 +618,18 @@ export class BridgeServer {
 
 	private attachSocket(ws: WS, session: LiveSession): void {
 		if (ws.data.attached.has(session.id)) return;
-		const unsubscribe = session.subscribe(event => {
-			this.sendEvent(ws, event);
-			this.maybePush(event);
-		});
+		const unsubscribe = session.subscribe(event => this.sendEvent(ws, event));
 		ws.data.attached.set(session.id, unsubscribe);
 	}
 
 	private lastPushAt = 0;
 
 	private maybePush(event: ServerEvent): void {
-		// Only push when nobody is connected to see it live.
-		if (this.sockets.size > 0) return;
+		// Push only when the session has no attached sockets to render events
+		// live (per-session attachment — a socket on another session must not
+		// suppress this session's offline notifications).
+		const sessionId = sessionIdForEvent(event);
+		if (!sessionId || this.attachedSocketCount(sessionId) > 0) return;
 		if (event.type === "approval_request") {
 			void this.push.send({
 				kind: "approval",
@@ -452,7 +638,13 @@ export class BridgeServer {
 				sessionId: event.approval.sessionId,
 				approvalId: event.approval.id,
 			});
-		} else if (event.type === "stream" && event.event.type === "agent_end") {
+		} else if (
+			event.type === "stream" &&
+			event.event.type === "agent_end" &&
+			// A maintenance or async-scheduled end isn't a real turn: don't
+			// rouse the user for it.
+			event.event.isTerminal !== false
+		) {
 			const now = Date.now();
 			if (now - this.lastPushAt < 30_000) return;
 			this.lastPushAt = now;
@@ -463,6 +655,12 @@ export class BridgeServer {
 				sessionId: event.sessionId,
 			});
 		}
+	}
+
+	private attachedSocketCount(sessionId: string): number {
+		let n = 0;
+		for (const s of this.sockets) if (s.data.attached.has(sessionId)) n++;
+		return n;
 	}
 
 	private requireSession(cmd: ClientCommand): LiveSession {
@@ -501,5 +699,23 @@ export class BridgeServer {
 
 	private broadcast(event: ServerEvent): void {
 		for (const ws of this.sockets) this.sendEvent(ws, event);
+	}
+}
+
+function sessionIdForEvent(event: ServerEvent): string | null {
+	switch (event.type) {
+		case "stream":
+		case "subagent":
+		case "approval_resolved":
+		case "commands":
+			return event.sessionId;
+		case "session_state":
+			return event.state.sessionId;
+		case "approval_request":
+			return event.approval.sessionId;
+		case "advisor":
+			return event.note.sessionId;
+		default:
+			return null;
 	}
 }

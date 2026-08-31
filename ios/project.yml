@@ -24,11 +24,13 @@ targets:
       - path: Shared
     dependencies:
       - target: AttacheWidgets
+      - target: AttacheNotificationService
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.skynetventures.attache
         INFOPLIST_FILE: Attache/Info.plist
-        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_ENTITLEMENTS: Attache/Attache.entitlements
+        TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
         ENABLE_PREVIEWS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -43,8 +45,22 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.skynetventures.attache.widgets
         INFOPLIST_FILE: AttacheWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AttacheWidgets/AttacheWidgets.entitlements
         SKIP_INSTALL: YES
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
+  AttacheNotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AttacheNotificationService
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.skynetventures.attache.notification-service
+        INFOPLIST_FILE: AttacheNotificationService/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AttacheNotificationService/AttacheNotificationService.entitlements
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
   AttacheTests:
     type: bundle.unit-test
     platform: iOS

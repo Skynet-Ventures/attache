@@ -125,6 +125,22 @@ export class OmpProcess {
 		}
 	}
 
+	/** Hard-terminate the child now (orphan cleanup — no drain grace period). */
+	kill(): void {
+		const proc = this.proc;
+		if (!proc) return;
+		try {
+			proc.stdin?.end();
+		} catch {
+			/* already closed */
+		}
+		try {
+			proc.kill();
+		} catch {
+			/* already dead */
+		}
+	}
+
 	private async waitForReady(): Promise<void> {
 		if (this.ready) return;
 		await new Promise<void>((resolve, reject) => {

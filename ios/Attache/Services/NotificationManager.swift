@@ -16,7 +16,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
 
     private weak var app: AppModel?
-    private let categoryId = "APPROVAL"
+    private let categoryId = NotificationCategory.approval
 
     func configure(app: AppModel) {
         self.app = app
@@ -113,7 +113,10 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         switch response.actionIdentifier {
         case "ALLOW", "DENY":
             let verdict: Verdict = response.actionIdentifier == "ALLOW" ? .allow : .deny
-            if let host, let token = Keychain.read(key: "bridge.token") {
+            // The notification may have been rendered by the service extension
+            // (host from the decrypted payload / app-group mirror) — resolve
+            // the owning machine's token rather than the legacy single key.
+            if let host, let token = AppSettings.bearerToken(forHost: host) {
                 await BridgeClient.postVerdict(
                     host: host, token: token, sessionId: sessionId, approvalId: approvalId, verdict: verdict
                 )

@@ -133,6 +133,9 @@ struct NotifyPermissionView: View {
             Button {
                 Task {
                     await NotificationManager.shared.requestPermission()
+                    // A machine was just paired to reach this step: start the
+                    // APNs handshake so the bridge can push while suspended.
+                    UIApplication.shared.registerForRemoteNotifications()
                     finish()
                 }
             } label: {
@@ -163,8 +166,8 @@ struct NotifyPermissionView: View {
     private func finish() {
         settings.notificationsRequested = true
         app.onboarding = .done
-        if app.engine == nil, let pairing = settings.pairing {
-            let engine = BridgeEngine(pairing: pairing)
+        if app.engine == nil, !settings.pairedMachines.isEmpty {
+            let engine = BridgeEngine(machines: settings.pairedMachines)
             app.engine = engine
             engine.start(app: app)
         }

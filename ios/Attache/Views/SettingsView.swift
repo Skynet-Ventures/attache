@@ -196,6 +196,13 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             Divider().overlay(Theme.hairlineFaint)
+            Button {
+                app.path.append(.costs)
+            } label: {
+                settingRow("Costs & usage", value: "30 days ▸")
+            }
+            .buttonStyle(.plain)
+            Divider().overlay(Theme.hairlineFaint)
             settingRow("MCP servers", value: "\(app.mcpSummary) ▸")
             Divider().overlay(Theme.hairlineFaint)
             settingRow("Skills & extensions", value: "\(app.skillsSummary) ▸")

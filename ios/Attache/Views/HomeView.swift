@@ -88,11 +88,17 @@ struct HomeView: View {
     }
 
     private var machineLabel: String {
+        if let issue = app.pairIssue {
+            switch issue {
+            case .invalidToken: return "\(app.machine.name) · token rejected — re-pair to continue"
+            case .updateRequired: return "app out of date — this bridge needs a newer Attaché"
+            }
+        }
         switch app.machine.link {
-        case .online(let ms): "\(app.machine.name) · tailscale · \(ms)ms"
-        case .demo: "\(app.machine.name) · demo data"
-        case .connecting: "\(app.machine.name) · connecting…"
-        case .offline: app.machine.name == "no machine" ? "not paired" : "\(app.machine.name) · unreachable — retrying"
+        case .online(let ms): return "\(app.machine.name) · tailscale · \(ms)ms"
+        case .demo: return "\(app.machine.name) · demo data"
+        case .connecting: return "\(app.machine.name) · connecting…"
+        case .offline: return app.machine.name == "no machine" ? "not paired" : "\(app.machine.name) · unreachable — retrying"
         }
     }
 
@@ -332,51 +338,106 @@ struct HomeView: View {
 
     // MARK: Project lists
 
+    /// Sessions grouped by owning machine (contract I). Order follows pairing
+    /// order; a single-machine install yields exactly one section and the
+    /// home screen looks unchanged.
+    private struct MachineSection: Identifiable {
+        let id: String
+        let name: String
+        let projects: [ProjectGroup]
+    }
+
+    private var machineSections: [MachineSection] {
+        var seen = Set<String>()
+        var out: [MachineSection] = []
+        let pairedIds = app.pairedMachines.map(\.id)
+        var orderedIds = pairedIds
+        for projectId in app.projects.map(\.machineId) where !projectId.isEmpty && !pairedIds.contains(projectId) {
+            orderedIds.append(projectId)
+        }
+        for machineId in orderedIds {
+            guard seen.insert(machineId).inserted else { continue }
+            let projects = app.projects.filter { $0.machineId == machineId }
+            guard !projects.isEmpty else { continue }
+            let name = app.pairedMachines.first(where: { $0.id == machineId })?.name
+                ?? projects.first?.machineName ?? "machine"
+            out.append(MachineSection(id: machineId, name: name, projects: projects))
+        }
+        return out
+    }
+
     private var projectLists: some View {
         VStack(alignment: .leading, spacing: 0) {
             let pinnedId = runningSession?.id
-            ForEach(app.projects) { project in
-                let rows = project.sessions.filter { $0.id != pinnedId }
-                if !rows.isEmpty || project.custom {
-                    SectionHeader(title: "\(project.name) — \(app.machine.name)")
-                        .padding(.horizontal, Theme.gutter)
-                        .padding(.bottom, 8)
-                        .contextMenu {
-                            if project.custom {
-                                Button(role: .destructive) {
-                                    app.engine?.deleteProject(id: project.id)
-                                } label: {
-                                    Label("Delete project", systemImage: "trash")
-                                }
+            ForEach(machineSections) { section in
+                HStack(spacing: 8) {
+                    Text(section.name.uppercased())
+                        .font(Theme.mono(9.5, .semibold))
+                        .tracking(1)
+                        .foregroundStyle(Theme.accent)
+                    let live = section.projects.flatMap(\.sessions).filter(\.live).count
+                    if live > 0 {
+                        Text("\(live) live")
+                            .font(Theme.mono(9.5))
+                            .foregroundStyle(Theme.accent.opacity(0.7))
+                    }
+                    Spacer()
+                    Rectangle().fill(Theme.hairlineFaint).frame(height: 1)
+                    Text("⑁")
+                        .font(Theme.mono(11))
+                        .foregroundStyle(Theme.text(0.3))
+                }
+                .padding(.horizontal, Theme.gutter)
+                .padding(.bottom, 8)
+                ForEach(Array(section.projects.enumerated()), id: \.element.id) { _, project in
+                    projectSection(project, pinnedId: pinnedId)
+                }
+            }
+        }
+    }
+
+    private func projectSection(_ project: ProjectGroup, pinnedId: String?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            let rows = project.sessions.filter { $0.id != pinnedId }
+            if !rows.isEmpty || project.custom {
+                SectionHeader(title: "\(project.name) — \(project.machineName.isEmpty ? app.machine.name : project.machineName)")
+                    .padding(.horizontal, Theme.gutter)
+                    .padding(.bottom, 8)
+                    .contextMenu {
+                        if project.custom {
+                            Button(role: .destructive) {
+                                app.engine?.deleteProject(id: project.id)
+                            } label: {
+                                Label("Delete project", systemImage: "trash")
                             }
                         }
-                    if rows.isEmpty {
-                        Text("no sessions yet — long-press a session to move it here")
-                            .font(Theme.mono(10))
-                            .foregroundStyle(Theme.textFaint)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 14)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Theme.raisedAlt)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius))
-                            .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius).stroke(Theme.hairlineFaint))
-                            .padding(.horizontal, Theme.gutter)
-                            .padding(.bottom, 14)
-                    } else {
-                        VStack(spacing: 0) {
-                            ForEach(Array(rows.enumerated()), id: \.element.id) { idx, session in
-                                SessionRow(session: session, inProject: project)
-                                if idx < rows.count - 1 {
-                                    Divider().overlay(Theme.hairlineFaint)
-                                }
-                            }
-                        }
+                    }
+                if rows.isEmpty {
+                    Text("no sessions yet — long-press a session to move it here")
+                        .font(Theme.mono(10))
+                        .foregroundStyle(Theme.textFaint)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Theme.raisedAlt)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius))
                         .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius).stroke(Theme.hairlineFaint))
                         .padding(.horizontal, Theme.gutter)
                         .padding(.bottom, 14)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { idx, session in
+                            SessionRow(session: session, inProject: project)
+                            if idx < rows.count - 1 {
+                                Divider().overlay(Theme.hairlineFaint)
+                            }
+                        }
                     }
+                    .background(Theme.raisedAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius).stroke(Theme.hairlineFaint))
+                    .padding(.horizontal, Theme.gutter)
+                    .padding(.bottom, 14)
                 }
             }
         }
@@ -588,6 +649,9 @@ private struct SessionRow: View {
     @Environment(AppModel.self) private var app
     let session: SessionSummary
     var inProject: ProjectGroup? = nil
+    @State private var branchPoints: [BranchPoint] = []
+    @State private var loadingPoints = false
+    @State private var showBranchSheet = false
 
     var dotColor: Color {
         switch session.status {
@@ -653,30 +717,207 @@ private struct SessionRow: View {
                     Label("Stop omp process", systemImage: "stop.circle")
                 }
             }
+            if !session.live && !session.sessionPath.isEmpty {
+                Button {
+                    loadBranchPoints()
+                } label: {
+                    Label("Branch from this session…", systemImage: "arrow.triangle.branch")
+                }
+            }
         }
+        .sheet(isPresented: $showBranchSheet) {
+            StoredBranchSheet(
+                session: session, points: branchPoints, loading: loadingPoints
+            ) { point in
+                app.engine?.branchStored(session, entryId: point.id, preview: point.preview)
+            }
+        }
+    }
+
+    /// Fetch branch points for a stored session (contract G) — the bridge
+    /// reads the session jsonl directly, no live observation required.
+    private func loadBranchPoints() {
+        branchPoints = []
+        loadingPoints = true
+        Task {
+            let points = await app.engine?.branchPoints(for: session) ?? []
+            if !Task.isCancelled {
+                branchPoints = points
+                loadingPoints = false
+                showBranchSheet = true
+            }
+        }
+    }
+}
+
+/// Branch picker for a STORED session. Reads fork points from the session
+/// file (via the bridge) and hands the choice to `branchStored`, which
+/// resumes the session, forks it, and lands in the branched copy.
+private struct StoredBranchSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let session: SessionSummary
+    let points: [BranchPoint]
+    let loading: Bool
+    var onPick: (BranchPoint) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 9) {
+                Text("⑂")
+                    .font(Theme.mono(14, .semibold))
+                    .foregroundStyle(Theme.accent)
+                Text("Branch — \(session.title)")
+                    .font(Theme.sans(15, .semibold))
+                    .foregroundStyle(Theme.text)
+                    .lineLimit(1)
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.text(0.7))
+                        .frame(width: 30, height: 30)
+                        .background(Theme.chip)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineStrong))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, Theme.streamGutter)
+            .padding(.vertical, 10)
+            .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.hairline), alignment: .bottom)
+
+            Text("THIS SESSION STAYS UNTOUCHED — A NEW SESSION FORKS FROM A PAST TURN")
+                .font(Theme.mono(9.5, .semibold))
+                .tracking(1)
+                .foregroundStyle(Theme.text(0.4))
+                .padding(.horizontal, 13)
+                .padding(.top, 9)
+                .padding(.bottom, 5)
+            if loading {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.mini).tint(Theme.accent)
+                    Text("reading stored session entries…")
+                        .font(Theme.mono(10.5))
+                        .foregroundStyle(Theme.textFaint)
+                }
+                .padding(.horizontal, 13)
+                .padding(.vertical, 12)
+            } else if points.isEmpty {
+                Text("no branchable turns found")
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(Theme.textFaint)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 12)
+                Spacer(minLength: 0)
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(Array(points.prefix(8).enumerated()), id: \.element.id) { idx, point in
+                            Button {
+                                dismiss()
+                                onPick(point)
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Text("⑂")
+                                        .font(Theme.mono(11))
+                                        .foregroundStyle(Theme.accent.opacity(0.7))
+                                    Text("\(point.preview)\(idx == 0 ? " — latest" : "")")
+                                        .font(Theme.mono(11, .medium))
+                                        .foregroundStyle(Theme.text)
+                                        .lineLimit(2)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 13)
+                                .padding(.vertical, 10)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            if idx < min(points.count, 8) - 1 {
+                                Divider().overlay(Theme.hairlineFaint)
+                            }
+                        }
+                    }
+                    .background(Theme.sheet)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.14)))
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 8)
+                }
+            }
+        }
+        .presentationDetents([.height(360)])
+        .presentationBackground(Theme.sheet)
     }
 }
 
 struct OfflineBanner: View {
     @Environment(AppModel.self) private var app
+
     var body: some View {
-        if app.offline {
-            HStack(spacing: 8) {
-                BlinkDot(color: Theme.danger, size: 6)
-                Text("\(app.machine.name) unreachable — retrying")
+        if app.pairIssue != nil {
+            pairIssueBanner
+        } else if app.offline {
+            offlineBanner
+        }
+    }
+
+    /// Token rejected or protocol floor: stop pretending we're retrying and
+    /// give the user a way out (re-pair) or the reason (update required).
+    private var pairIssueBanner: some View {
+        HStack(spacing: 8) {
+            BlinkDot(color: Theme.danger, size: 6)
+            switch app.pairIssue {
+            case .invalidToken:
+                Text("\(app.machine.name) rejected this device — re-pair to reconnect")
                     .font(Theme.mono(10, .medium))
                     .foregroundStyle(Theme.diffDelText)
                 Spacer()
-                Text("actions queue + sync")
-                    .font(Theme.mono(9.5))
-                    .foregroundStyle(Theme.diffDelText.opacity(0.7))
+                Button("re-pair") {
+                    app.path.append(.machines)
+                }
+                .font(Theme.mono(10, .semibold))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 3)
+                .background(Theme.accent)
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+                .buttonStyle(PressableStyle(scale: 0.94))
+            case .updateRequired:
+                Text("Attaché is out of date — update the app to talk to this bridge")
+                    .font(Theme.mono(10, .medium))
+                    .foregroundStyle(Theme.diffDelText)
+                Spacer()
+            case nil:
+                EmptyView()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-            .background(Color(hex: 0x3C0E0A).opacity(0.88))
-            .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.danger.opacity(0.35)), alignment: .top)
-            .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.danger.opacity(0.35)), alignment: .bottom)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(Color(hex: 0x3C0E0A).opacity(0.88))
+        .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.danger.opacity(0.35)), alignment: .top)
+        .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.danger.opacity(0.35)), alignment: .bottom)
+    }
+
+    private var offlineBanner: some View {
+        HStack(spacing: 8) {
+            BlinkDot(color: Theme.danger, size: 6)
+            Text("\(app.machine.name) unreachable — retrying")
+                .font(Theme.mono(10, .medium))
+                .foregroundStyle(Theme.diffDelText)
+            Spacer()
+            Text(app.queuedPromptCount > 0
+                ? "\(app.queuedPromptCount) queued — sends on reconnect"
+                : "actions queue + sync")
+                .font(Theme.mono(9.5))
+                .foregroundStyle(Theme.diffDelText.opacity(0.7))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(Color(hex: 0x3C0E0A).opacity(0.88))
+        .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.danger.opacity(0.35)), alignment: .top)
+        .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.danger.opacity(0.35)), alignment: .bottom)
     }
 }
 

@@ -1,4 +1,5 @@
 import ActivityKit
+import Combine
 import Foundation
 
 /// Starts, updates, and ends the session Live Activity from AppModel state.
@@ -13,6 +14,7 @@ final class LiveActivityManager {
     private var activity: Activity<AttacheActivityAttributes>?
     private var lastState: AttacheActivityAttributes.ContentState?
     private var activityTitle: String?
+    private var pushTokenTask: Task<Void, Never>?
 
     func sync(app: AppModel) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
@@ -51,6 +53,39 @@ final class LiveActivityManager {
         )
         activityTitle = app.sessionTitle
         lastState = state
+        if let activity {
+            observePushToStartToken(activity)
+        }
+    }
+
+    /// Live Activity push-to-start seam (contract H): forwards the push token
+    /// to the bridge (`register_push { transport: "liveactivity", target }`).
+    /// The relay uses it to start/extend this activity via APNs while the app
+    /// is suspended — the bridge side of that wave is not built yet, so this
+    /// is registration-only.
+    private func observePushToStartToken(_ activity: Activity<AttacheActivityAttributes>) {
+        pushTokenTask?.cancel()
+        let forward = { (token: Data) in
+            let hex = token.map { String(format: "%02x", $0) }.joined()
+            if !hex.isEmpty {
+                PushRegistrar.shared.registerLiveActivityPushToStart(hex)
+            }
+        }
+        pushTokenTask = Task { [weak self] in
+            // Push-to-start tokens are exposed statically per activity type
+            // (they authorize starting any activity of this kind); iOS 17.2+.
+            guard #available(iOS 17.2, *) else { return }
+            let activityType = Activity<AttacheActivityAttributes>.self
+            if let existing = await activityType.pushToStartToken {
+                guard !Task.isCancelled else { return }
+                forward(existing)
+            }
+            let updates = activityType.pushToStartTokenUpdates
+            for await token in updates {
+                guard !Task.isCancelled else { break }
+                forward(token)
+            }
+        }
     }
 
     func end() {
@@ -58,6 +93,8 @@ final class LiveActivityManager {
         self.activity = nil
         lastState = nil
         activityTitle = nil
+        pushTokenTask?.cancel()
+        pushTokenTask = nil
         Task { await activity.end(nil, dismissalPolicy: .immediate) }
     }
 

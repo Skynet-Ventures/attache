@@ -11,9 +11,13 @@ struct DiffView: View {
             header
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(app.diff?.lines ?? []) { line in
-                        DiffLineView(line: line, fontSize: 11)
-                            .padding(.horizontal, 3)
+                    if let sections = app.diff?.sections, !sections.isEmpty {
+                        DiffSectionsView(sections: sections, fontSize: 11)
+                    } else {
+                        ForEach(app.diff?.lines ?? []) { line in
+                            DiffLineView(line: line, fontSize: 11)
+                                .padding(.horizontal, 3)
+                        }
                     }
                 }
                 .padding(.vertical, 10)
