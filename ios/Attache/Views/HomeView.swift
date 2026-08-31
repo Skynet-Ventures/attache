@@ -4,6 +4,7 @@ struct HomeView: View {
     @Environment(AppModel.self) private var app
     @State private var showPlusMenu = false
     @State private var showNewProject = false
+    @State private var showNewSession = false
     @State private var newProjectName = ""
 
     var body: some View {
@@ -22,9 +23,15 @@ struct HomeView: View {
         }
         .background(Theme.bg)
         .confirmationDialog("", isPresented: $showPlusMenu) {
+            Button("New session") { showNewSession = true }
             Button("New project") { showNewProject = true }
-            Button("Resume or start a session") { app.path.append(.resume) }
+            Button("Resume a session") { app.path.append(.resume) }
             Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showNewSession) {
+            NewSessionSheet()
+                .presentationDetents([.medium])
+                .presentationBackground(Theme.raisedAlt)
         }
         .sheet(isPresented: $showNewProject) {
             NewProjectSheet()
@@ -334,6 +341,138 @@ struct HomeView: View {
                 }
             }
         }
+    }
+}
+
+/// Start a fresh omp session: pick a known working directory, type a custom
+/// path, or fall into the general ~/scratch directory.
+private struct NewSessionSheet: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    @State private var customPath = ""
+
+    private var knownDirs: [(name: String, cwd: String)] {
+        var seen = Set<String>()
+        var out: [(String, String)] = []
+        for group in app.projects {
+            for session in group.sessions where !session.cwd.isEmpty && !seen.contains(session.cwd) {
+                seen.insert(session.cwd)
+                out.append((session.cwd.split(separator: "/").last.map(String.init) ?? session.cwd, session.cwd))
+            }
+        }
+        return out
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("New session")
+                .font(Theme.sans(15, .semibold))
+                .foregroundStyle(Theme.text)
+                .padding(.bottom, 4)
+            Text("Where should omp work?")
+                .font(Theme.sans(11.5))
+                .foregroundStyle(Theme.text(0.5))
+                .padding(.bottom, 12)
+            Button {
+                dismiss()
+                app.engine?.startNewSession(cwd: nil, scratch: true)
+            } label: {
+                HStack(spacing: 10) {
+                    Text("✳︎")
+                        .font(Theme.mono(13, .semibold))
+                        .foregroundStyle(Theme.accent)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Scratch")
+                            .font(Theme.sans(13, .medium))
+                            .foregroundStyle(Theme.text)
+                        Text("no project — lands in ~/scratch")
+                            .font(Theme.mono(9.5))
+                            .foregroundStyle(Theme.text(0.4))
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Theme.raised)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.accentBorderFaint))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.bottom, 10)
+            if !knownDirs.isEmpty {
+                Text("KNOWN DIRECTORIES")
+                    .font(Theme.mono(9.5, .semibold))
+                    .tracking(1)
+                    .foregroundStyle(Theme.text(0.4))
+                    .padding(.bottom, 6)
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(knownDirs, id: \.cwd) { dir in
+                            Button {
+                                dismiss()
+                                app.engine?.startNewSession(cwd: dir.cwd, scratch: false)
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Text(dir.name)
+                                        .font(Theme.sans(12.5))
+                                        .foregroundStyle(Theme.text)
+                                    Spacer()
+                                    Text(dir.cwd)
+                                        .font(Theme.mono(9))
+                                        .foregroundStyle(Theme.text(0.35))
+                                        .lineLimit(1)
+                                        .truncationMode(.head)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 9)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            Divider().overlay(Theme.hairlineFaint)
+                        }
+                    }
+                    .background(Theme.raisedAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.hairlineFaint))
+                }
+                .frame(maxHeight: 180)
+                .padding(.bottom, 10)
+            }
+            HStack(spacing: 8) {
+                TextField("/path/on/\(app.machine.name)", text: $customPath)
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.text)
+                    .tint(Theme.accent)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .onSubmit(startCustom)
+                    .padding(.horizontal, 11)
+                    .frame(height: 36)
+                    .background(Theme.codeBlock)
+                    .clipShape(RoundedRectangle(cornerRadius: 9))
+                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.hairlineStrong))
+                Button(action: startCustom) {
+                    Text("Go")
+                        .font(Theme.sans(12, .semibold))
+                        .foregroundStyle(.black)
+                        .frame(width: 48, height: 36)
+                        .background(customPath.isEmpty ? Theme.accent.opacity(0.4) : Theme.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 9))
+                }
+                .buttonStyle(PressableStyle())
+                .disabled(customPath.isEmpty)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+    }
+
+    private func startCustom() {
+        let path = customPath.trimmingCharacters(in: .whitespaces)
+        guard !path.isEmpty else { return }
+        dismiss()
+        app.engine?.startNewSession(cwd: path, scratch: false)
     }
 }
 

@@ -38,6 +38,8 @@ final class DemoEngine: Engine {
         app.rulesSummary = "12 · from 4 formats"
         app.mcpSummary = "3 connected"
         app.skillsSummary = "7 · 5"
+        app.snapcompactLabel = "auto @ 85%"
+        app.fallbackChain = ["deepseek-v4-flash", "nemotron-3-ultra", "glm-5.2"]
         app.pairedMachines = [
             PairedMachine(
                 id: "devbox", name: "devbox", state: .online(latencyMs: 12),
@@ -335,6 +337,20 @@ final class DemoEngine: Engine {
     }
 
     func testWebhook() async -> Bool { true }
+
+    func startNewSession(cwd: String?, scratch: Bool) {
+        guard let app else { return }
+        app.items = []
+        app.sessionTitle = scratch ? "Scratch session" : "New session"
+        app.branchLabel = scratch ? "scratch" : (cwd as NSString?)?.lastPathComponent ?? "project"
+        app.turnNo = 0
+        app.ctxPercent = 2
+        app.costUsd = 0
+        app.append(.notice("fresh session in \(scratch ? "~/scratch" : cwd ?? "?") — say hi"))
+        app.path.append(.stream)
+    }
+
+    func wake(mac: String) async -> Bool { true }
 
     func dispatchSubagent(task: String) {
         guard let app else { return }

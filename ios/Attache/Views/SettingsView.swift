@@ -13,10 +13,12 @@ struct SettingsView: View {
                         .padding(.bottom, 7)
                     rolesCard
                         .padding(.bottom, 12)
-                    SectionHeader(title: "Fallback chain — default")
-                        .padding(.bottom, 7)
-                    fallbackCard
-                        .padding(.bottom, 12)
+                    if !app.fallbackChain.isEmpty {
+                        SectionHeader(title: "Fallback chain — default")
+                            .padding(.bottom, 7)
+                        fallbackCard
+                            .padding(.bottom, 12)
+                    }
                     SectionHeader(title: "Behavior")
                         .padding(.bottom, 7)
                     behaviorCard
@@ -92,13 +94,7 @@ struct SettingsView: View {
 
     private var fallbackCard: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 7) {
-                fallbackChip("deepseek-v4-flash", primary: true)
-                Text("→").font(Theme.mono(11)).foregroundStyle(Theme.textFaint)
-                fallbackChip("nemotron-3-ultra", primary: false)
-                Text("→").font(Theme.mono(11)).foregroundStyle(Theme.textFaint)
-            }
-            fallbackChip("glm-5.2", primary: false)
+            FlowChips(models: app.fallbackChain)
             Text("on 429 / quota — session never dies")
                 .font(Theme.mono(9.5))
                 .foregroundStyle(Theme.textFaint)
@@ -109,6 +105,50 @@ struct SettingsView: View {
         .background(Theme.raisedAlt)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairlineFaint))
+    }
+
+    private struct FlowChips: View {
+        let models: [String]
+        var body: some View {
+            // Simple wrapping row: chips with arrows between them.
+            var rows: [[String]] = [[]]
+            var width: CGFloat = 0
+            for model in models {
+                let est = CGFloat(model.count) * 7 + 40
+                if width + est > 320, !rows[rows.count - 1].isEmpty {
+                    rows.append([])
+                    width = 0
+                }
+                rows[rows.count - 1].append(model)
+                width += est
+            }
+            return VStack(alignment: .leading, spacing: 7) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { rowIdx, row in
+                    HStack(spacing: 7) {
+                        ForEach(Array(row.enumerated()), id: \.offset) { idx, model in
+                            SettingsView.chip(model, primary: rowIdx == 0 && idx == 0)
+                            if !(rowIdx == rows.count - 1 && idx == row.count - 1) {
+                                Text("→").font(Theme.mono(11)).foregroundStyle(Theme.textFaint)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    static func chip(_ label: String, primary: Bool) -> some View {
+        Text(label)
+            .font(Theme.mono(10.5, .medium))
+            .foregroundStyle(primary ? Theme.text : Theme.text(0.7))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color(hex: 0x17171A))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(primary ? Theme.accent.opacity(0.45) : Color.white.opacity(0.12))
+            )
     }
 
     private func fallbackChip(_ label: String, primary: Bool) -> some View {
@@ -147,7 +187,7 @@ struct SettingsView: View {
             .padding(.horizontal, 13)
             .padding(.vertical, 10)
             Divider().overlay(Theme.hairlineFaint)
-            settingRow("Snapcompact", value: "auto @ 85%")
+            settingRow("Snapcompact", value: app.snapcompactLabel.isEmpty ? "—" : app.snapcompactLabel)
             Divider().overlay(Theme.hairlineFaint)
             Button {
                 app.path.append(.rules)

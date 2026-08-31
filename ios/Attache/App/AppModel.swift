@@ -73,6 +73,8 @@ final class AppModel {
     // MARK: Roles & settings
     var roles: [RoleModel] = []
     var enabledModels: [String] = []
+    var fallbackChain: [String] = []
+    var snapcompactLabel = ""
     var webhookURL: String = UserDefaults.standard.string(forKey: "push.webhook") ?? ""
     var approvalMode: ApprovalModeSetting = .write
     var hindsightEnabled = true
@@ -150,6 +152,8 @@ protocol Engine: AnyObject {
     func deleteRule(id: String)
     func registerWebhook(_ url: String) async -> Bool
     func testWebhook() async -> Bool
+    func startNewSession(cwd: String?, scratch: Bool)
+    func wake(mac: String) async -> Bool
     func diffVerdict(approved: Bool, note: String?)
     func cycleThinking(role: String)
     func setApprovalMode(_ mode: ApprovalModeSetting)

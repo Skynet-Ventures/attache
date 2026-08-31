@@ -91,6 +91,26 @@ final class BridgeEngine: Engine {
             if !app.webhookURL.isEmpty {
                 _ = try? await client.send("register_push", ["transport": "webhook", "target": app.webhookURL])
             }
+            // Real environment values for the settings screen.
+            if let summary = try? await client.send("get_omp_summary") {
+                let mcp = summary["mcpServers"]?.intValue ?? 0
+                app.mcpSummary = mcp == 0 ? "none configured" : "\(mcp) configured"
+                let skills = summary["skills"]?.intValue ?? 0
+                let extensions = summary["extensions"]?.intValue ?? 0
+                app.skillsSummary = "\(skills) · \(extensions)"
+                if let snap = summary["snapcompact"] {
+                    let pct = Int((snap["threshold"]?.doubleValue ?? 0.85) * 100)
+                    app.snapcompactLabel = (snap["enabled"]?.boolValue ?? true) ? "auto @ \(pct)%" : "off"
+                }
+                if let fallbacks = summary["fallbacks"]?.objectValue,
+                   let chain = fallbacks["default"]?.arrayValue ?? fallbacks.values.first?.arrayValue {
+                    app.fallbackChain = chain.compactMap {
+                        $0.stringValue?.split(separator: "/").last.map(String.init)
+                    }
+                } else {
+                    app.fallbackChain = []
+                }
+            }
             app.pairedMachines = [
                 PairedMachine(
                     id: "paired", name: app.machine.name, state: .online(latencyMs: 0),
@@ -194,6 +214,9 @@ final class BridgeEngine: Engine {
     private func reattachIfNeeded() async {
         guard let client, let app, let summary = currentSummary else { return }
         let previousId = app.sessionId
+        // Never fall back to a bare/empty cwd attach — that would silently
+        // create a brand-new session in $HOME instead of resuming.
+        guard previousId != nil || !summary.sessionPath.isEmpty || !summary.cwd.isEmpty else { return }
         do {
             var payload: [String: Any] = [:]
             if let previousId {
@@ -323,7 +346,41 @@ final class BridgeEngine: Engine {
                 card.detailLines.append(DiffLine(kind: .context, text: "+ \(lines.count - 8) more lines"))
             }
         }
+        Self.applyDiffIfPresent(&card, output: output)
         app.items[idx].kind = .toolCard(card)
+    }
+
+    /// If a tool result reads like a unified diff (omp's edit/write results
+    /// do), convert it into typed diff lines so the card gets ±counts and the
+    /// full-screen "review ▸" flow.
+    static func applyDiffIfPresent(_ card: inout ToolCardModel, output: String) {
+        guard ["edit", "write", "ast_edit"].contains(card.verb) || output.contains("@@") else { return }
+        let rawLines = output.split(separator: "\n", omittingEmptySubsequences: false)
+        var diffLines: [DiffLine] = []
+        var adds = 0
+        var dels = 0
+        var sawMarker = false
+        for raw in rawLines.prefix(400) {
+            let line = String(raw.prefix(160))
+            // omp edit results prefix lines with hashline ids like "a3f2| + code".
+            let stripped = line.replacingOccurrences(
+                of: #"^\s*[0-9a-f]{2,8}\s*\|\s?"#, with: "", options: .regularExpression
+            )
+            if stripped.hasPrefix("@@") {
+                diffLines.append(DiffLine(kind: .hunk, text: stripped)); sawMarker = true
+            } else if stripped.hasPrefix("+"), !stripped.hasPrefix("+++") {
+                diffLines.append(DiffLine(kind: .add, text: stripped)); adds += 1; sawMarker = true
+            } else if stripped.hasPrefix("-"), !stripped.hasPrefix("---") {
+                diffLines.append(DiffLine(kind: .del, text: stripped)); dels += 1; sawMarker = true
+            } else {
+                diffLines.append(DiffLine(kind: .context, text: stripped))
+            }
+        }
+        guard sawMarker, adds + dels > 0 else { return }
+        card.detailLines = diffLines
+        card.addCount = adds
+        card.delCount = dels
+        if card.footer == nil { card.footer = "" }
     }
 
     // MARK: Event handling
@@ -383,6 +440,51 @@ final class BridgeEngine: Engine {
         let streaming = state["isStreaming"]?.boolValue ?? false
         app.turnActive = streaming
         if !streaming { app.typing = false }
+        applyPlanFromTodos(state["todoPhases"])
+    }
+
+    /// omp's plan-of-record is its todo phase list (plan mode seeds it, and
+    /// the agent updates task status as it executes). Mirror it into the plan
+    /// screen so live sessions get the same review surface as the demo.
+    private func applyPlanFromTodos(_ phases: JSONValue?) {
+        guard let app else { return }
+        let allTasks: [(phase: String, content: String, status: String)] = (phases?.arrayValue ?? []).flatMap { phase in
+            (phase["tasks"]?.arrayValue ?? []).compactMap { task in
+                guard let content = task["content"]?.stringValue else { return nil }
+                return (
+                    phase: phase["name"]?.stringValue ?? "Plan",
+                    content: content,
+                    status: task["status"]?.stringValue ?? "pending"
+                )
+            }
+        }
+        guard !allTasks.isEmpty else {
+            if app.plan != nil { app.plan = nil }
+            return
+        }
+        let steps = allTasks.map { task in
+            PlanStepModel(
+                title: task.content,
+                file: task.phase,
+                risk: .low,
+                mark: task.status == "completed" ? .done : task.status == "in_progress" ? .active : .pending
+            )
+        }
+        let doneCount = steps.filter { $0.mark == .done }.count
+        let activeIdx = steps.firstIndex { $0.mark == .active }
+        let state: PlanModel.State =
+            activeIdx != nil ? .executing(step: activeIdx! + 1)
+            : doneCount == steps.count ? .executing(step: steps.count)
+            : doneCount > 0 ? .executing(step: doneCount + 1)
+            : .ready
+        app.plan = PlanModel(
+            title: app.sessionTitle.isEmpty ? "Plan" : app.sessionTitle,
+            project: currentSummary?.project ?? "",
+            roleLabel: "\(currentSummary?.project ?? "") · \(app.modelLabel) · \(doneCount)/\(steps.count) done",
+            summary: "Live todo list from omp — \(steps.count) steps. Accept/refine below steer the agent; step marks update as it works.",
+            steps: steps,
+            state: state
+        )
     }
 
     private func handleStreamEvent(_ event: JSONValue) {
@@ -427,6 +529,9 @@ final class BridgeEngine: Engine {
                   case .toolCard(var card) = app.items[idx].kind else { return }
             card.running = false
             card.meta = toolResultMeta(event["result"]) ?? card.meta
+            let resultText = event["result"]?["content"]?.arrayValue?
+                .compactMap { $0["text"]?.stringValue }.joined(separator: "\n") ?? ""
+            Self.applyDiffIfPresent(&card, output: resultText)
             app.items[idx].kind = .toolCard(card)
         case "session_exited":
             app.append(.notice("session process ended on \(app.machine.name)"))
@@ -930,6 +1035,41 @@ final class BridgeEngine: Engine {
     func testWebhook() async -> Bool {
         guard let client else { return false }
         return (try? await client.send("test_push")) != nil
+    }
+
+    func startNewSession(cwd: String?, scratch: Bool) {
+        Task { [weak self] in
+            guard let self, let client = self.client, let app = self.app else { return }
+            app.items = []
+            app.subagents = []
+            app.plan = nil
+            app.sessionTitle = scratch ? "Scratch session" : "New session"
+            app.branchLabel = scratch ? "scratch" : (cwd as NSString?)?.lastPathComponent ?? ""
+            app.sessionId = nil
+            self.lastSeq = 0
+            self.toolItems = [:]
+            app.path.append(.stream)
+            do {
+                var payload: [String: Any] = [:]
+                if scratch { payload["scratch"] = true } else if let cwd { payload["cwd"] = cwd }
+                let result = try await client.send("attach", payload)
+                app.sessionId = result["sessionId"]?.stringValue
+                self.currentSummary = SessionSummary(
+                    id: app.sessionId ?? "", title: app.sessionTitle,
+                    project: app.branchLabel, cwd: cwd ?? "",
+                    sessionPath: "", updatedAt: Date(), live: true, status: .idle, shortId: ""
+                )
+                app.append(.notice("fresh session in \(scratch ? "~/scratch" : cwd ?? "?") — say hi"))
+                self.refreshSessions()
+            } catch {
+                app.append(.notice("couldn't start session: \((error as? BridgeError)?.message ?? "error")"))
+            }
+        }
+    }
+
+    func wake(mac: String) async -> Bool {
+        guard let client else { return false }
+        return (try? await client.send("wake", ["mac": mac])) != nil
     }
 
     func diffVerdict(approved: Bool, note: String?) {

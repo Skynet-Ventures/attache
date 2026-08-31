@@ -22,6 +22,8 @@ struct MachinesView: View {
                         pairedCard
                             .padding(.bottom, 10)
                     }
+                    WakeTargetsCard()
+                        .padding(.bottom, 10)
                     Text("direct over your tailnet · tokens stay on your devices · revoke anytime")
                         .font(Theme.mono(10))
                         .foregroundStyle(Theme.textFaint)
@@ -115,6 +117,128 @@ struct MachinesView: View {
                 .overlay(RoundedRectangle(cornerRadius: 5).stroke(border))
         }
         .buttonStyle(PressableStyle(scale: 0.92))
+    }
+}
+
+// MARK: - Wake-on-LAN targets
+
+private struct WakeTarget: Codable, Identifiable, Equatable {
+    var id = UUID()
+    var name: String
+    var mac: String
+}
+
+/// The bridge broadcasts WOL magic packets on its LAN; targets are stored
+/// per-device here. Useful for waking a desktop the bridge machine can see.
+private struct WakeTargetsCard: View {
+    @Environment(AppModel.self) private var app
+    @State private var targets: [WakeTarget] = WakeTargetsCard.load()
+    @State private var showAdd = false
+    @State private var newName = ""
+    @State private var newMac = ""
+    @State private var status: [UUID: String] = [:]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                SectionHeader(title: "Wake-on-LAN")
+                Spacer()
+                Button {
+                    showAdd = true
+                } label: {
+                    Text("+ add")
+                        .font(Theme.mono(10, .medium))
+                        .foregroundStyle(Theme.accent)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.bottom, 7)
+            if targets.isEmpty {
+                Text("add a machine's MAC — the bridge broadcasts the magic packet on its network")
+                    .font(Theme.mono(10))
+                    .foregroundStyle(Theme.textFaint)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.raisedAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairlineFaint))
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(targets) { target in
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(target.name)
+                                    .font(Theme.sans(12.5, .medium))
+                                    .foregroundStyle(Theme.text)
+                                Text(target.mac)
+                                    .font(Theme.mono(9.5))
+                                    .foregroundStyle(Theme.text(0.4))
+                            }
+                            Spacer()
+                            if let s = status[target.id] {
+                                Text(s)
+                                    .font(Theme.mono(9.5))
+                                    .foregroundStyle(s == "sent" ? Theme.success : Theme.danger)
+                            }
+                            Button {
+                                Task {
+                                    let ok = await app.engine?.wake(mac: target.mac) ?? false
+                                    status[target.id] = ok ? "sent" : "failed"
+                                }
+                            } label: {
+                                Text("wake")
+                                    .font(Theme.mono(10, .medium))
+                                    .foregroundStyle(Theme.accent)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(Theme.accent.opacity(0.45)))
+                            }
+                            .buttonStyle(PressableStyle(scale: 0.92))
+                        }
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 10)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                targets.removeAll { $0.id == target.id }
+                                WakeTargetsCard.save(targets)
+                            } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                        }
+                        if target.id != targets.last?.id {
+                            Divider().overlay(Theme.hairlineFaint)
+                        }
+                    }
+                }
+                .background(Theme.raisedAlt)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairlineFaint))
+            }
+        }
+        .alert("Add wake target", isPresented: $showAdd) {
+            TextField("name (e.g. desktop)", text: $newName)
+            TextField("MAC — aa:bb:cc:dd:ee:ff", text: $newMac)
+            Button("Add") {
+                let mac = newMac.trimmingCharacters(in: .whitespaces)
+                let name = newName.trimmingCharacters(in: .whitespaces)
+                newName = ""; newMac = ""
+                guard !mac.isEmpty else { return }
+                targets.append(WakeTarget(name: name.isEmpty ? "machine" : name, mac: mac))
+                WakeTargetsCard.save(targets)
+            }
+            Button("Cancel", role: .cancel) { newName = ""; newMac = "" }
+        }
+    }
+
+    private static func load() -> [WakeTarget] {
+        guard let data = UserDefaults.standard.data(forKey: "wake.targets"),
+              let targets = try? JSONDecoder().decode([WakeTarget].self, from: data) else { return [] }
+        return targets
+    }
+
+    private static func save(_ targets: [WakeTarget]) {
+        UserDefaults.standard.set(try? JSONEncoder().encode(targets), forKey: "wake.targets")
     }
 }
 

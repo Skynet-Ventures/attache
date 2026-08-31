@@ -212,9 +212,6 @@ struct StreamView: View {
                             .lineLimit(1...4)
                             .focused($composerFocused)
                             .onSubmit(sendDraft)
-                        Image(systemName: "mic")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Theme.text(0.5))
                     }
                     .padding(.horizontal, 13)
                     .frame(minHeight: 38)

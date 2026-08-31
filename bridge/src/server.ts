@@ -4,6 +4,8 @@
  */
 
 import { hostname } from "node:os";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import type { ServerWebSocket } from "bun";
 import { Auth } from "./auth";
 import { RuleStore } from "./approvals";
@@ -11,7 +13,8 @@ import { ProjectStore } from "./projects";
 import { Push } from "./push";
 import { LiveSession } from "./sessions/live";
 import { groupByProject, listStoredSessions, searchStoredSessions } from "./sessions/store";
-import { getApprovalMode, getEnabledModels, getRoles, setApprovalModeGlobal, setRole } from "./config";
+import { getApprovalMode, getEnabledModels, getOmpSummary, getRoles, setApprovalModeGlobal, setRole } from "./config";
+import { sendMagicPacket } from "./wol";
 import {
 	PROTOCOL_VERSION,
 	type ClientCommand,
@@ -250,7 +253,13 @@ export class BridgeServer {
 							: existingId?.startsWith("stored:")
 								? existingId.slice("stored:".length)
 								: undefined;
-					const cwd = typeof cmd.cwd === "string" ? cmd.cwd : process.env.HOME ?? "/";
+					let cwd = typeof cmd.cwd === "string" && cmd.cwd.length > 0 ? cmd.cwd : process.env.HOME ?? "/";
+					if (cmd.scratch === true) {
+						// Scratch sessions land in one general directory so they
+						// group together instead of littering per-timestamp dirs.
+						cwd = join(process.env.HOME ?? "/", "scratch");
+						await mkdir(cwd, { recursive: true });
+					}
 					session = new LiveSession(cwd, this.rules, { resume, ompBin: this.opts.ompBin });
 					const s = session;
 					session.onDispose = () => {
@@ -358,6 +367,12 @@ export class BridgeServer {
 
 			case "get_roles":
 				return { roles: await getRoles() };
+			case "get_omp_summary":
+				return await getOmpSummary();
+			case "wake": {
+				await sendMagicPacket(String(cmd.mac ?? ""), cmd.address ? String(cmd.address) : undefined);
+				return {};
+			}
 			case "set_role":
 				return {
 					roles: await setRole(

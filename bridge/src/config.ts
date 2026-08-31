@@ -89,3 +89,52 @@ export async function getEnabledModels(): Promise<string[]> {
 	const config = await readConfig();
 	return (config.enabledModels as string[]) ?? [];
 }
+
+/**
+ * Real values for the settings screen's environment rows: MCP servers,
+ * skills, extensions, compaction, and any configured fallback chains.
+ */
+export async function getOmpSummary(): Promise<Record<string, unknown>> {
+	const config = await readConfig();
+	const agentDir = ompAgentDir();
+
+	const countEntries = async (dir: string): Promise<number> => {
+		try {
+			const { readdir } = await import("node:fs/promises");
+			return (await readdir(dir)).filter(e => !e.startsWith(".")).length;
+		} catch {
+			return 0;
+		}
+	};
+
+	// MCP servers may be declared under a few keys depending on omp version.
+	const mcp = (config.mcp?.servers ?? config.mcpServers ?? {}) as Record<string, unknown>;
+	const mcpCount = typeof mcp === "object" ? Object.keys(mcp).length : 0;
+
+	// Fallback chains: any modelRoles value that is a list.
+	const fallbacks: Record<string, string[]> = {};
+	for (const [role, value] of Object.entries((config.modelRoles ?? {}) as Record<string, unknown>)) {
+		if (Array.isArray(value) && value.length > 1) fallbacks[role] = value.map(String);
+	}
+
+	const compaction = (config.compaction ?? {}) as Record<string, unknown>;
+	const threshold =
+		typeof compaction.threshold === "number"
+			? compaction.threshold
+			: typeof compaction.triggerRatio === "number"
+				? compaction.triggerRatio
+				: 0.85;
+
+	return {
+		mcpServers: mcpCount,
+		skills: await countEntries(join(agentDir, "skills")),
+		extensions: await countEntries(join(agentDir, "extensions")),
+		agents: await countEntries(join(agentDir, "agents")),
+		snapcompact: {
+			enabled: compaction.enabled !== false,
+			threshold,
+		},
+		fallbacks,
+		hindsight: config.hindsight?.enabled ?? config.memory?.enabled ?? null,
+	};
+}
