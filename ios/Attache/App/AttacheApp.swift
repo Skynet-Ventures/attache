@@ -107,6 +107,7 @@ struct RootView: View {
                                 .navigationDestination(for: Route.self) { route in
                                     destination(for: route)
                                         .navigationBarHidden(true)
+                                        .edgeSwipeBack()
                                 }
                         }
                     }
@@ -117,6 +118,7 @@ struct RootView: View {
                             .navigationDestination(for: Route.self) { route in
                                 destination(for: route)
                                     .navigationBarHidden(true)
+                                    .edgeSwipeBack()
                             }
                     }
                 }
