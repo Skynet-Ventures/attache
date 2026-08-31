@@ -1169,18 +1169,27 @@ final class BridgeEngine: Engine {
                     sessionId: app.sessionId!, app: app
                 )
             } catch {
-                // Mid-flight failure — the socket died at send time (interface
-                // flip, oversized frame, background race). Convert the
-                // optimistic user bubble into a queued item so nothing is
-                // lost; it flushes automatically after reconnect.
-                if let idx = app.items.lastIndex(where: {
-                    if case .user(let t) = $0.kind { return t == prefix + trimmed + attachNote }
-                    return false
-                }) {
-                    app.items.remove(at: idx)
+                let removeBubble = {
+                    if let idx = app.items.lastIndex(where: {
+                        if case .user(let t) = $0.kind { return t == prefix + trimmed + attachNote }
+                        return false
+                    }) {
+                        app.items.remove(at: idx)
+                    }
                 }
-                self.enqueuePrompt(text: trimmed, mode: mode, role: role, attachments: attachments)
-                app.append(.notice("connection blipped — message queued, sends on reconnect"))
+                // Only transport failures (socket died mid-flight, interface
+                // flip, background race — or a non-BridgeError from URLSession)
+                // are retryable verbatim. Result errors mean the bridge
+                // rejected the request; requeueing would poison the FIFO queue
+                // (flush stops on first failure) and fail identically forever.
+                if (error as? BridgeError)?.isTransport ?? true {
+                    removeBubble()
+                    self.enqueuePrompt(text: trimmed, mode: mode, role: role, attachments: attachments)
+                    app.append(.notice("connection blipped — message queued, sends on reconnect"))
+                } else {
+                    removeBubble()
+                    app.append(.notice("send failed: \((error as? BridgeError)?.message ?? "error")"))
+                }
             }
         }
     }
@@ -1204,8 +1213,10 @@ final class BridgeEngine: Engine {
     }
 
     /// Deliver persisted prompts composed in the currently attached session,
-    /// in FIFO order. Stops at the first failure (still unreachable) and
-    /// keeps the remainder queued.
+    /// in FIFO order. A transport failure (still unreachable) stops the flush
+    /// and keeps the remainder queued; a result error means the bridge
+    /// rejected this specific prompt, so it is dropped with a notice instead
+    /// of poisoning the head of the queue forever.
     private func flushQueuedPrompts() async {
         guard let app else { return }
         while let queued = promptQueue.peek(),
@@ -1217,13 +1228,17 @@ final class BridgeEngine: Engine {
                 app.queuedPromptCount = promptQueue.count
                 markQueuedDelivered(queued)
             } catch {
-                break
+                if (error as? BridgeError)?.isTransport ?? true { break }
+                promptQueue.removeFirst()
+                app.queuedPromptCount = promptQueue.count
+                app.items.removeAll { $0.id == queued.id.uuidString }
+                app.append(.notice("queued message failed: \((error as? BridgeError)?.message ?? "error") — removed from queue"))
             }
         }
     }
 
     private func deliverQueued(_ queued: QueuedPrompt, sessionId: String) async throws {
-        guard let app else { throw BridgeError(message: "not connected") }
+        guard let app else { throw BridgeError(message: "not connected", isTransport: true) }
         try await deliverPromptPayload(
             text: queued.text, mode: queued.mode,
             images: queued.images.map { ComposerAttachment(kind: .image, name: "photo.jpg", data: $0.data, mimeType: $0.mimeType) },
@@ -1255,7 +1270,7 @@ final class BridgeEngine: Engine {
         images: [ComposerAttachment], files: [ComposerAttachment],
         sessionId: String, app: AppModel
     ) async throws {
-        guard let client else { throw BridgeError(message: "not connected") }
+        guard let client else { throw BridgeError(message: "not connected", isTransport: true) }
         var uploadedPaths: [String] = []
         for file in files {
             let result = try await client.send("upload_file", [

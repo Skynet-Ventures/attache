@@ -65,6 +65,11 @@ enum JSONValue: Codable, Equatable {
 struct BridgeError: Error, Equatable {
     let message: String
     var code: String?
+    /// True when the request never reached the bridge (socket died, never
+    /// connected, or the server went away) — safe to retry verbatim. False
+    /// for result errors: the bridge processed and rejected the request, so
+    /// retrying without change will fail identically.
+    var isTransport = false
 }
 
 // MARK: - Reconnect state machine
@@ -344,7 +349,8 @@ final class BridgeClient {
         offlineGraceTask = nil
         failAllPending(BridgeError(
             message: kind == .updateRequired ? "protocol mismatch — update required" : "device token rejected",
-            code: kind == .updateRequired ? "protocol_mismatch" : "revoked"
+            code: kind == .updateRequired ? "protocol_mismatch" : "revoked",
+            isTransport: false
         ))
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
@@ -392,7 +398,7 @@ final class BridgeClient {
                     }
                     self.receiveLoop(task)
                 case .failure:
-                    self.failAllPending(BridgeError(message: "connection lost"))
+                    self.failAllPending(BridgeError(message: "connection lost", isTransport: true))
                     // Deliberate teardowns (bye/auth failure) already own the
                     // reconnect path — and nil out `task`, so the guard above
                     // stops us from double-scheduling.
@@ -477,7 +483,7 @@ final class BridgeClient {
     /// promptly and quietly. No offline banner, no backoff storm.
     private func handleBye(_ frame: JSONValue) {
         let reason = frame["reason"]?.stringValue ?? "bridge is shutting down"
-        failAllPending(BridgeError(message: reason, code: "bye"))
+        failAllPending(BridgeError(message: reason, code: "bye", isTransport: true))
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
         scheduleReconnect(failure: .serverBye)
@@ -492,7 +498,7 @@ final class BridgeClient {
 
     @discardableResult
     func send(_ type: String, _ payload: [String: Any] = [:]) async throws -> JSONValue {
-        guard let task else { throw BridgeError(message: "not connected") }
+        guard let task else { throw BridgeError(message: "not connected", isTransport: true) }
         requestCounter += 1
         let id = "app_\(requestCounter)"
         var object: [String: Any] = payload
