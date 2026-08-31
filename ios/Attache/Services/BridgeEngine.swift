@@ -15,6 +15,9 @@ final class BridgeEngine: Engine {
     private var currentSummary: SessionSummary?
     private var lastSeq: Int = 0
     private var reloadingAfterGap = false
+    /// History can't be paged while omp is streaming (session_busy) — when a
+    /// reload is needed mid-turn, defer it until the turn settles.
+    private var needsReloadAfterTurn = false
 
     init(pairing: PairingInfo) {
         self.pairing = pairing
@@ -237,42 +240,60 @@ final class BridgeEngine: Engine {
             ]) else { return }
             app.sessionId = result["sessionId"]?.stringValue
         }
+        lastSeq = 0
         await reloadTranscript()
         refreshSubagents()
     }
 
     /// Full transcript rebuild — used after reconnects and seq gaps.
+    ///
+    /// The existing transcript is NEVER cleared until replacement content has
+    /// actually arrived: omp rejects history paging while streaming
+    /// (session_busy), and blanking the screen on that failure was a bug.
     private func reloadTranscript() async {
         guard let app else { return }
-        app.items = []
-        toolItems = [:]
-        streamingItemId = nil
-        lastSeq = 0
-        await loadHistory()
+        guard let staged = await fetchHistoryItems() else {
+            // Busy or disconnected — keep what we have, retry after the turn.
+            needsReloadAfterTurn = true
+            return
+        }
+        var items = staged
         // Re-append any still-pending approvals so they stay answerable inline.
         for approval in app.approvals where approval.status == .pending && approval.sessionId == app.sessionId {
-            app.items.append(ChatItem(kind: .approval(approval), turn: app.turnNo))
+            items.append(ChatItem(kind: .approval(approval), turn: app.turnNo))
         }
+        app.items = items
+        toolItems = [:]
+        streamingItemId = nil
     }
 
     private func loadHistory() async {
-        guard let client, let app, let sessionId = app.sessionId else { return }
+        await reloadTranscript()
+    }
+
+    /// Fetch and convert the full history, or nil if any page failed.
+    private func fetchHistoryItems() async -> [ChatItem]? {
+        guard let client, let app, let sessionId = app.sessionId else { return nil }
+        var items: [ChatItem] = []
+        var toolMap: [String: String] = [:]
         var cursor: String?
         var pages = 0
         repeat {
             var payload: [String: Any] = ["sessionId": sessionId, "limit": 256]
             if let cursor { payload["cursor"] = cursor }
-            guard let data = try? await client.send("get_messages", payload) else { break }
+            guard let data = try? await client.send("get_messages", payload) else { return nil }
             for message in data["messages"]?.arrayValue ?? [] {
-                appendHistoryMessage(message)
+                appendHistoryMessage(message, into: &items, toolMap: &toolMap)
             }
             cursor = data["nextCursor"]?.stringValue
             pages += 1
         } while cursor != nil && pages < 40
+        return items
     }
 
-    private func appendHistoryMessage(_ value: JSONValue) {
-        guard let app else { return }
+    private func appendHistoryMessage(
+        _ value: JSONValue, into items: inout [ChatItem], toolMap: inout [String: String]
+    ) {
         let message = value["message"] ?? value
         let role = message["role"]?.stringValue ?? ""
         let blocks = message["content"]?.arrayValue ?? []
@@ -282,7 +303,7 @@ final class BridgeEngine: Engine {
             let callId = message["toolCallId"]?.stringValue ?? value["toolCallId"]?.stringValue
             let text = blocks.compactMap { $0["text"]?.stringValue }.joined(separator: "\n")
             let isError = message["isError"]?.boolValue ?? false
-            applyHistoryToolResult(callId: callId, output: text, isError: isError)
+            Self.applyHistoryToolResult(callId: callId, output: text, isError: isError, items: &items, toolMap: toolMap)
             return
         }
 
@@ -293,31 +314,34 @@ final class BridgeEngine: Engine {
                       !text.isEmpty else { continue }
                 if role == "user" {
                     if let advisory = extractAdvisory(text) {
-                        app.append(.advisor(advisory))
+                        items.append(ChatItem(kind: .advisor(advisory)))
                     } else if text.hasPrefix("[steer") || text.hasPrefix("steer:") {
-                        app.append(.steer(text))
+                        items.append(ChatItem(kind: .steer(text)))
                     } else {
                         text = String(text.prefix(4000))
-                        app.append(.user(text))
+                        items.append(ChatItem(kind: .user(text)))
                     }
                 } else if role == "assistant" {
-                    app.append(.agentText(String(text.prefix(8000))))
+                    items.append(ChatItem(kind: .agentText(String(text.prefix(8000)))))
                 }
             case "toolCall", "tool_call", "toolUse":
                 let name = block["name"]?.stringValue ?? block["toolName"]?.stringValue ?? "tool"
                 let item = ChatItem(
-                    kind: .toolCard(toolCard(name: name, args: block["arguments"] ?? block["input"], result: nil)),
-                    turn: app.turnNo
+                    kind: .toolCard(toolCard(name: name, args: block["arguments"] ?? block["input"], result: nil))
                 )
-                app.items.append(item)
+                items.append(item)
                 if let callId = block["id"]?.stringValue ?? block["toolCallId"]?.stringValue {
-                    toolItems[callId] = item.id
+                    toolMap[callId] = item.id
                 }
             case "toolResult", "tool_result":
                 let callId = block["toolCallId"]?.stringValue ?? block["id"]?.stringValue
                 let text = block["content"]?.arrayValue?.compactMap { $0["text"]?.stringValue }.joined(separator: "\n")
                     ?? block["text"]?.stringValue ?? ""
-                applyHistoryToolResult(callId: callId, output: text, isError: block["isError"]?.boolValue ?? false)
+                Self.applyHistoryToolResult(
+                    callId: callId, output: text,
+                    isError: block["isError"]?.boolValue ?? false,
+                    items: &items, toolMap: toolMap
+                )
             default:
                 continue
             }
@@ -325,15 +349,17 @@ final class BridgeEngine: Engine {
     }
 
     /// Attach output preview + status to a previously converted tool card.
-    private func applyHistoryToolResult(callId: String?, output: String, isError: Bool) {
-        guard let app else { return }
-        let itemId = callId.flatMap { toolItems[$0] } ?? app.items.last(where: {
+    private static func applyHistoryToolResult(
+        callId: String?, output: String, isError: Bool,
+        items: inout [ChatItem], toolMap: [String: String]
+    ) {
+        let itemId = callId.flatMap { toolMap[$0] } ?? items.last(where: {
             if case .toolCard(let t) = $0.kind { return t.meta.isEmpty && t.detailLines.isEmpty }
             return false
         })?.id
         guard let itemId,
-              let idx = app.items.firstIndex(where: { $0.id == itemId }),
-              case .toolCard(var card) = app.items[idx].kind else { return }
+              let idx = items.firstIndex(where: { $0.id == itemId }),
+              case .toolCard(var card) = items[idx].kind else { return }
         let lines = output.split(separator: "\n", omittingEmptySubsequences: true)
         if card.meta.isEmpty {
             card.meta = isError ? "✕ error" : String((lines.first ?? "done").prefix(28))
@@ -346,8 +372,8 @@ final class BridgeEngine: Engine {
                 card.detailLines.append(DiffLine(kind: .context, text: "+ \(lines.count - 8) more lines"))
             }
         }
-        Self.applyDiffIfPresent(&card, output: output)
-        app.items[idx].kind = .toolCard(card)
+        applyDiffIfPresent(&card, output: output)
+        items[idx].kind = .toolCard(card)
     }
 
     /// If a tool result reads like a unified diff (omp's edit/write results
@@ -393,15 +419,19 @@ final class BridgeEngine: Engine {
         case "stream":
             guard frame["sessionId"]?.stringValue == app.sessionId else { return }
             if let seq = frame["seq"]?.intValue {
-                if lastSeq > 0, seq > lastSeq + 1, !reloadingAfterGap {
-                    // Missed events (reconnect race): rebuild from history.
-                    reloadingAfterGap = true
-                    lastSeq = seq
-                    Task { [weak self] in
-                        await self?.reloadTranscript()
-                        self?.reloadingAfterGap = false
+                if lastSeq > 0, seq > lastSeq + 1 {
+                    // Missed events (reconnect race). Mid-turn, omp refuses
+                    // history paging, so defer the rebuild until the turn
+                    // settles; either way keep rendering this event.
+                    if app.turnActive || app.typing {
+                        needsReloadAfterTurn = true
+                    } else if !reloadingAfterGap {
+                        reloadingAfterGap = true
+                        Task { [weak self] in
+                            await self?.reloadTranscript()
+                            self?.reloadingAfterGap = false
+                        }
                     }
-                    return
                 }
                 lastSeq = max(lastSeq, seq)
             }
@@ -507,6 +537,10 @@ final class BridgeEngine: Engine {
                 app.turnStartedAt = nil
                 streamingItemId = nil
                 NotificationManager.shared.notifyTurnDone(sessionTitle: app.sessionTitle)
+                if needsReloadAfterTurn {
+                    needsReloadAfterTurn = false
+                    Task { [weak self] in await self?.reloadTranscript() }
+                }
             }
         case "message_start":
             streamingItemId = nil
