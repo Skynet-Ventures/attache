@@ -442,6 +442,12 @@ final class BridgeEngine: Engine {
             for message in data["messages"]?.arrayValue ?? [] {
                 appendHistoryMessage(message, into: &items, toolMap: &toolMap)
             }
+            if data["fromDisk"]?.boolValue == true {
+                // Bridge served the on-disk transcript because omp was mid-turn.
+                // Good enough to read now; re-sync canonically once it settles.
+                needsReloadAfterTurn = true
+                return items
+            }
             cursor = data["nextCursor"]?.stringValue
             pages += 1
         } while cursor != nil && pages < 40
@@ -662,6 +668,10 @@ final class BridgeEngine: Engine {
         if let turn = state["turn"]?.intValue, turn > 0 { app.turnNo = turn }
         let streaming = state["isStreaming"]?.boolValue ?? false
         app.turnActive = streaming
+        if streaming, app.turnStartedAt == nil {
+            // Attached mid-turn: count from now rather than showing 0m00s.
+            app.turnStartedAt = Date()
+        }
         if !streaming { app.typing = false }
         applyPlanFromTodos(state["todoPhases"])
     }

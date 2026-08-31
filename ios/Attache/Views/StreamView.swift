@@ -215,6 +215,18 @@ struct StreamView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10, pinnedViews: [.sectionHeaders]) {
                     Section {
+                        if app.items.isEmpty, app.sessionId != nil {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.mini).tint(Theme.accent)
+                                Text(app.turnActive
+                                    ? "live turn in progress — syncing transcript…"
+                                    : "loading transcript…")
+                                    .font(Theme.mono(10.5))
+                                    .foregroundStyle(Theme.textFaint)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 30)
+                        }
                         ForEach(StreamGrouping.renderUnits(from: app.items)) { unit in
                             switch unit {
                             case .item(let item):

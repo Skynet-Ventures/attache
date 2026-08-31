@@ -459,11 +459,23 @@ export class BridgeServer {
 				return {};
 			}
 
-			case "get_messages":
-				return this.requireSession(cmd).getMessages(
-					cmd.cursor as string | undefined,
-					cmd.limit as number | undefined,
-				);
+			case "get_messages": {
+				const session = this.requireSession(cmd);
+				try {
+					return await session.getMessages(
+						cmd.cursor as string | undefined,
+						cmd.limit as number | undefined,
+					);
+				} catch (err) {
+					// session_busy (streaming/compacting) or a stale cursor:
+					// serve the transcript from disk so a mid-turn attach
+					// isn't a blank screen. The app reloads via RPC once the
+					// turn settles.
+					const fallback = await session.readTranscriptFromDisk();
+					if (fallback.messages.length > 0) return fallback;
+					throw err;
+				}
+			}
 			case "get_subagents":
 				return this.requireSession(cmd).getSubagents();
 			case "get_subagent_messages":

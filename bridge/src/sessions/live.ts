@@ -283,6 +283,36 @@ export class LiveSession {
 	}
 
 	/**
+	 * Read the transcript straight from the session jsonl. The RPC history
+	 * pager refuses to run while the session is streaming (session_busy), but
+	 * the on-disk file is always readable — this keeps a freshly attached
+	 * client from staring at a blank transcript through a long turn.
+	 */
+	async readTranscriptFromDisk(maxMessages = 600): Promise<{ messages: unknown[]; fromDisk: true }> {
+		const file = this.state?.sessionFile;
+		if (!file) return { messages: [], fromDisk: true };
+		let text: string;
+		try {
+			text = await Bun.file(file).text();
+		} catch {
+			return { messages: [], fromDisk: true };
+		}
+		const messages: unknown[] = [];
+		for (const line of text.split("\n")) {
+			if (!line.includes('"type":"message"')) continue;
+			try {
+				const entry = JSON.parse(line) as { type?: string; id?: string; message?: unknown };
+				if (entry.type === "message" && entry.message) {
+					messages.push({ id: entry.id, message: entry.message });
+				}
+			} catch {
+				/* torn tail line mid-write — expected while streaming */
+			}
+		}
+		return { messages: messages.slice(-maxMessages), fromDisk: true };
+	}
+
+	/**
 	 * Write an uploaded file into the session's working directory so the
 	 * agent can read it. Files land in <cwd>/attache-uploads/.
 	 */
