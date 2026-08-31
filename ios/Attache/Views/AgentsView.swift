@@ -4,6 +4,8 @@ struct AgentsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var steerDraft = ""
+    @State private var showDispatch = false
+    @State private var dispatchTask = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,6 +23,18 @@ struct AgentsView: View {
             focusedSheet
         }
         .background(Theme.bg)
+        .alert("Dispatch a subagent", isPresented: $showDispatch) {
+            TextField("what should it work on?", text: $dispatchTask)
+            Button("Dispatch") {
+                let task = dispatchTask.trimmingCharacters(in: .whitespaces)
+                dispatchTask = ""
+                guard !task.isEmpty else { return }
+                app.engine?.dispatchSubagent(task: task)
+            }
+            Button("Cancel", role: .cancel) { dispatchTask = "" }
+        } message: {
+            Text("Asks the primary agent to spin up a task-tool subagent for this.")
+        }
     }
 
     private var header: some View {
@@ -36,6 +50,14 @@ struct AgentsView: View {
                     .lineLimit(1)
             }
             Spacer()
+            Button {
+                showDispatch = true
+            } label: {
+                Text("+ dispatch")
+                    .font(Theme.mono(10, .medium))
+                    .foregroundStyle(Theme.accent)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, Theme.streamGutter)
         .padding(.bottom, 10)

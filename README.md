@@ -78,6 +78,14 @@ your own team.
 | Demo mode (no machine needed; App Store review friendly) | ✅ |
 | Custom projects: group session directories under one name, synced via the bridge | ✅ |
 | Live Activity + Dynamic Island (session, status, context bar, approval chip) | ✅ (updates while the app runs) |
+| Auto re-attach + transcript backfill after reconnects (seq-gap detection) | ✅ |
+| Webhook push (ntfy-ready) configurable in Settings, with send-test | ✅ |
+| Extension dialogs (omp `ask`, select/confirm/input) answerable inline | ✅ |
+| Always-allow rules review/revoke screen | ✅ |
+| @role picker sets model+thinking; separate session model picker | ✅ |
+| Photo attachments in the composer (sent as omp image content) | ✅ |
+| Branch sheet backed by real session entry ids | ✅ |
+| Dispatch a subagent from the agent hub | ✅ (routed via the primary agent) |
 
 Roadmap (see `docs/`): APNs push relay for fully-suspended delivery (also
 unlocks push-updated Live Activities), QR pairing, branch-from-turn UI wired

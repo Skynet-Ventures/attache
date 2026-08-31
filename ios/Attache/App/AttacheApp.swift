@@ -76,6 +76,7 @@ struct RootView: View {
         case .resume: ResumeView()
         case .settings: SettingsView()
         case .machines: MachinesView()
+        case .rules: RulesView()
         }
     }
 }

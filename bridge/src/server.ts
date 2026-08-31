@@ -292,6 +292,7 @@ export class BridgeServer {
 					String(cmd.message ?? ""),
 					(cmd.mode as never) ?? "chat",
 					cmd.streamingBehavior as never,
+					Array.isArray(cmd.images) ? (cmd.images as Array<{ data: string; mimeType: string }>) : undefined,
 				);
 				return {};
 			}
@@ -349,6 +350,8 @@ export class BridgeServer {
 			case "branch":
 				await this.requireSession(cmd).branch(String(cmd.entryId));
 				return {};
+			case "get_entries":
+				return { entries: await this.requireSession(cmd).getEntries() };
 			case "compact":
 				await this.requireSession(cmd).compact();
 				return {};
@@ -378,7 +381,23 @@ export class BridgeServer {
 					transport: cmd.transport as "webhook" | "apns",
 					target: String(cmd.target ?? ""),
 				});
+				return { registered: !!String(cmd.target ?? "").trim() };
+
+			case "test_push": {
+				if (!this.push.targetFor(ws.data.deviceId)) {
+					throw new Error("no push target registered for this device");
+				}
+				await this.push.send(
+					{
+						kind: "turn_done",
+						title: "Attaché test",
+						body: `Push from ${this.machineInfo().name} works — you'll get approvals here when no device is connected.`,
+						sessionId: "test",
+					},
+					ws.data.deviceId,
+				);
 				return {};
+			}
 
 			default:
 				throw new Error(`unknown command: ${cmd.type}`);

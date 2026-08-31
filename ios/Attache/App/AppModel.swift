@@ -11,6 +11,7 @@ enum Route: Hashable {
     case resume
     case settings
     case machines
+    case rules
 }
 
 enum OnboardingStage {
@@ -71,6 +72,8 @@ final class AppModel {
 
     // MARK: Roles & settings
     var roles: [RoleModel] = []
+    var enabledModels: [String] = []
+    var webhookURL: String = UserDefaults.standard.string(forKey: "push.webhook") ?? ""
     var approvalMode: ApprovalModeSetting = .write
     var hindsightEnabled = true
     var rulesSummary = ""
@@ -127,7 +130,8 @@ protocol Engine: AnyObject {
     func start(app: AppModel)
     func refreshSessions()
     func openSession(_ summary: SessionSummary)
-    func send(_ text: String, mode: ComposerMode, role: String)
+    func send(_ text: String, mode: ComposerMode, role: String, images: [AttachedImage])
+    func dispatchSubagent(task: String)
     func stopTurn()
     func resolveApproval(id: String, verdict: Verdict)
     func advisorAddress(itemId: String)
@@ -137,7 +141,15 @@ protocol Engine: AnyObject {
     func planReject()
     func planRequestRedraft()
     func planRefine(_ text: String)
-    func branch(fromEntry: ChatItem)
+    func branchPoints() async -> [BranchPoint]
+    func branch(entryId: String, preview: String)
+    func answerDialog(itemId: String, value: String?, confirmed: Bool?)
+    func pickRole(_ role: String)
+    func setModel(_ fullModel: String)
+    func listRules() async -> [AlwaysRuleModel]
+    func deleteRule(id: String)
+    func registerWebhook(_ url: String) async -> Bool
+    func testWebhook() async -> Bool
     func diffVerdict(approved: Bool, note: String?)
     func cycleThinking(role: String)
     func setApprovalMode(_ mode: ApprovalModeSetting)

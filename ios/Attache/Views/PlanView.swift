@@ -169,7 +169,7 @@ struct PlanView: View {
                         .font(Theme.mono(11, .medium))
                         .foregroundStyle(Theme.accent)
                     Spacer()
-                    Button("pause") {}
+                    Button("pause") { app.engine?.goalPause() }
                         .font(Theme.mono(10, .medium))
                         .foregroundStyle(Theme.text(0.6))
                         .buttonStyle(.plain)

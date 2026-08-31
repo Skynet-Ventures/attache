@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 struct StreamView: View {
@@ -6,8 +7,11 @@ struct StreamView: View {
 
     @State private var draft = ""
     @State private var showRoleSheet = false
+    @State private var showModelSheet = false
     @State private var showSlashSheet = false
     @State private var showBranchSheet = false
+    @State private var pickedPhotos: [PhotosPickerItem] = []
+    @State private var attachments: [AttachedImage] = []
     @FocusState private var composerFocused: Bool
 
     var body: some View {
@@ -114,8 +118,12 @@ struct StreamView: View {
         VStack(spacing: 0) {
             if showSlashSheet { SlashPalette(onPick: pickSlash) }
             if showRoleSheet { RolePickerSheet(onPick: pickRole) }
+            if showModelSheet { ModelPickerSheet(onPick: pickModel) }
             if showBranchSheet { BranchSheet(onPick: pickBranch) }
             VStack(spacing: 9) {
+                if !attachments.isEmpty {
+                    attachmentStrip
+                }
                 HStack(spacing: 8) {
                     Button {
                         withAnimation(.easeOut(duration: 0.12)) {
@@ -133,7 +141,7 @@ struct StreamView: View {
                     }
                     .buttonStyle(PressableStyle(scale: 0.94))
                     Button {
-                        withAnimation { showRoleSheet.toggle(); showSlashSheet = false; showBranchSheet = false }
+                        withAnimation { showRoleSheet.toggle(); showModelSheet = false; showSlashSheet = false; showBranchSheet = false }
                     } label: {
                         Text("@\(app.composerRole) ▾")
                             .font(Theme.mono(10, .medium))
@@ -146,7 +154,21 @@ struct StreamView: View {
                     }
                     .buttonStyle(.plain)
                     Button {
-                        withAnimation { showSlashSheet.toggle(); showRoleSheet = false; showBranchSheet = false }
+                        withAnimation { showModelSheet.toggle(); showRoleSheet = false; showSlashSheet = false; showBranchSheet = false }
+                    } label: {
+                        Text("\(shortModelLabel) ▾")
+                            .font(Theme.mono(10, .medium))
+                            .foregroundStyle(Theme.text(0.6))
+                            .padding(.horizontal, 8)
+                            .frame(height: 24)
+                            .background(Theme.chip)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.hairlineStrong))
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        withAnimation { showSlashSheet.toggle(); showRoleSheet = false; showModelSheet = false; showBranchSheet = false }
                     } label: {
                         Text("/")
                             .font(Theme.mono(10, .medium))
@@ -170,17 +192,18 @@ struct StreamView: View {
                     }
                 }
                 HStack(spacing: 9) {
-                    Button {} label: {
+                    PhotosPicker(selection: $pickedPhotos, maxSelectionCount: 4, matching: .images) {
                         Text("+")
                             .font(Theme.sans(19, .light))
-                            .foregroundStyle(Theme.text(0.6))
+                            .foregroundStyle(attachments.isEmpty ? Theme.text(0.6) : Theme.accent)
                             .padding(.bottom, 2)
                             .frame(width: 32, height: 32)
                             .background(Theme.chip)
                             .clipShape(RoundedRectangle(cornerRadius: 9))
-                            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.hairlineStrong))
+                            .overlay(RoundedRectangle(cornerRadius: 9).stroke(attachments.isEmpty ? Theme.hairlineStrong : Theme.accentBorder))
                     }
                     .buttonStyle(.plain)
+                    .onChange(of: pickedPhotos) { loadPickedPhotos() }
                     HStack(spacing: 8) {
                         TextField("Message omp…", text: $draft, axis: .vertical)
                             .font(Theme.sans(13))
@@ -216,12 +239,75 @@ struct StreamView: View {
         .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.hairline), alignment: .top)
     }
 
+    private var shortModelLabel: String {
+        let label = app.modelLabel.isEmpty ? "model" : app.modelLabel
+        return String(label.prefix(14))
+    }
+
+    private var attachmentStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 7) {
+                ForEach(attachments) { image in
+                    ZStack(alignment: .topTrailing) {
+                        if let ui = UIImage(data: image.jpegData) {
+                            Image(uiImage: ui)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 52, height: 52)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineStrong))
+                        }
+                        Button {
+                            attachments.removeAll { $0.id == image.id }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Theme.text, Theme.codeBlock)
+                        }
+                        .buttonStyle(.plain)
+                        .offset(x: 5, y: -5)
+                    }
+                }
+            }
+            .padding(.top, 4)
+        }
+        .frame(height: 56)
+    }
+
+    private func loadPickedPhotos() {
+        let items = pickedPhotos
+        pickedPhotos = []
+        Task {
+            for item in items {
+                guard let data = try? await item.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data) else { continue }
+                // Downscale for the model: long edge ≤ 1568px, JPEG.
+                let maxEdge: CGFloat = 1568
+                let scale = min(1, maxEdge / max(image.size.width, image.size.height))
+                let target = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+                let renderer = UIGraphicsImageRenderer(size: target)
+                let scaled = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: target)) }
+                guard let jpeg = scaled.jpegData(compressionQuality: 0.7) else { continue }
+                attachments.append(AttachedImage(jpegData: jpeg))
+            }
+        }
+    }
+
     private func sendDraft() {
         let text = draft
+        let images = attachments
+        guard !text.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty else { return }
         draft = ""
+        attachments = []
         showSlashSheet = false
         showRoleSheet = false
-        app.engine?.send(text, mode: app.composerMode, role: app.composerRole)
+        showModelSheet = false
+        app.engine?.send(text, mode: app.composerMode, role: app.composerRole, images: images)
+    }
+
+    private func pickModel(_ model: String) {
+        app.engine?.setModel(model)
+        showModelSheet = false
     }
 
     private func pickSlash(_ cmd: String) {
@@ -231,13 +317,13 @@ struct StreamView: View {
     }
 
     private func pickRole(_ role: String) {
-        app.composerRole = role
+        app.engine?.pickRole(role)
         showRoleSheet = false
     }
 
-    private func pickBranch(_ item: ChatItem, label: String) {
+    private func pickBranch(_ point: BranchPoint) {
         showBranchSheet = false
-        app.engine?.branch(fromEntry: item)
+        app.engine?.branch(entryId: point.id, preview: point.preview)
     }
 }
 
@@ -333,41 +419,44 @@ struct RolePickerSheet: View {
     var onPick: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("SEND NEXT MESSAGE AS ROLE")
-                .font(Theme.mono(9.5, .semibold))
-                .tracking(1)
-                .foregroundStyle(Theme.text(0.4))
-                .padding(.horizontal, 13)
-                .padding(.top, 9)
-                .padding(.bottom, 5)
-            ForEach(app.roles) { role in
-                Button { onPick(role.name) } label: {
-                    HStack(spacing: 10) {
-                        Text(role.name)
-                            .font(Theme.mono(11, .semibold))
-                            .foregroundStyle(roleColor(role.name))
-                            .frame(width: 66, alignment: .leading)
-                        Text(role.model)
-                            .font(Theme.mono(11))
-                            .foregroundStyle(Theme.text(0.6))
-                            .lineLimit(1)
-                        Spacer()
-                        Text(role.thinking.rawValue)
-                            .font(Theme.mono(9, .medium))
-                            .foregroundStyle(Theme.text(0.5))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.16)))
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("SWITCH ROLE — SETS MODEL + THINKING")
+                    .font(Theme.mono(9.5, .semibold))
+                    .tracking(1)
+                    .foregroundStyle(Theme.text(0.4))
                     .padding(.horizontal, 13)
-                    .padding(.vertical, 9)
-                    .contentShape(Rectangle())
+                    .padding(.top, 9)
+                    .padding(.bottom, 5)
+                ForEach(app.roles) { role in
+                    Button { onPick(role.name) } label: {
+                        HStack(spacing: 10) {
+                            Text(role.name)
+                                .font(Theme.mono(11, .semibold))
+                                .foregroundStyle(roleColor(role.name))
+                                .frame(width: 66, alignment: .leading)
+                            Text(role.model)
+                                .font(Theme.mono(11))
+                                .foregroundStyle(Theme.text(0.6))
+                                .lineLimit(1)
+                            Spacer()
+                            Text(role.thinking.rawValue)
+                                .font(Theme.mono(9, .medium))
+                                .foregroundStyle(Theme.text(0.5))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.16)))
+                        }
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 9)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    Divider().overlay(Theme.hairlineFaint)
                 }
-                .buttonStyle(.plain)
-                Divider().overlay(Theme.hairlineFaint)
             }
         }
+        .frame(maxHeight: 360)
         .background(Theme.sheet)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.14)))
@@ -383,23 +472,72 @@ struct RolePickerSheet: View {
     }
 }
 
+/// Dedicated model picker — distinct from the @role picker: switches the
+/// session's active model directly via set_model.
+struct ModelPickerSheet: View {
+    @Environment(AppModel.self) private var app
+    var onPick: (String) -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("SWITCH SESSION MODEL")
+                    .font(Theme.mono(9.5, .semibold))
+                    .tracking(1)
+                    .foregroundStyle(Theme.text(0.4))
+                    .padding(.horizontal, 13)
+                    .padding(.top, 9)
+                    .padding(.bottom, 5)
+                if app.enabledModels.isEmpty {
+                    Text("no models reported by the bridge")
+                        .font(Theme.mono(10.5))
+                        .foregroundStyle(Theme.textFaint)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 12)
+                }
+                ForEach(app.enabledModels, id: \.self) { model in
+                    let short = model.split(separator: "/").last.map(String.init) ?? model
+                    let isCurrent = short == app.modelLabel
+                    Button { onPick(model) } label: {
+                        HStack(spacing: 8) {
+                            Text(short)
+                                .font(Theme.mono(11, isCurrent ? .semibold : .regular))
+                                .foregroundStyle(isCurrent ? Theme.accent : Theme.text(0.85))
+                                .lineLimit(1)
+                            if isCurrent {
+                                Text("current")
+                                    .font(Theme.mono(9))
+                                    .foregroundStyle(Theme.accent.opacity(0.7))
+                            }
+                            Spacer()
+                            Text(model.split(separator: "/").first.map(String.init) ?? "")
+                                .font(Theme.mono(9))
+                                .foregroundStyle(Theme.text(0.35))
+                        }
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 9)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    Divider().overlay(Theme.hairlineFaint)
+                }
+            }
+        }
+        .frame(maxHeight: 320)
+        .background(Theme.sheet)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.14)))
+        .shadow(color: .black.opacity(0.6), radius: 20, y: -10)
+        .padding(.horizontal, 10)
+        .padding(.bottom, 8)
+    }
+}
+
 struct BranchSheet: View {
     @Environment(AppModel.self) private var app
-    var onPick: (ChatItem, String) -> Void
-
-    private var candidates: [(ChatItem, String)] {
-        // Offer the last few turn boundaries, newest first.
-        var seen = Set<Int>()
-        var out: [(ChatItem, String)] = []
-        for item in app.items.reversed() {
-            guard item.turn > 0, !seen.contains(item.turn) else { continue }
-            seen.insert(item.turn)
-            let suffix = out.isEmpty ? " — now" : ""
-            out.append((item, "from turn \(item.turn)\(suffix)"))
-            if out.count == 3 { break }
-        }
-        return out
-    }
+    var onPick: (BranchPoint) -> Void
+    @State private var points: [BranchPoint] = []
+    @State private var loading = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -410,19 +548,45 @@ struct BranchSheet: View {
                 .padding(.horizontal, 13)
                 .padding(.top, 9)
                 .padding(.bottom, 5)
-            ForEach(candidates, id: \.0.id) { item, label in
-                Button { onPick(item, label) } label: {
-                    Text(label)
-                        .font(Theme.mono(11.5, .medium))
-                        .foregroundStyle(Theme.text)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
+            if loading {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.mini).tint(Theme.accent)
+                    Text("reading session entries…")
+                        .font(Theme.mono(10.5))
+                        .foregroundStyle(Theme.textFaint)
+                }
+                .padding(.horizontal, 13)
+                .padding(.vertical, 12)
+            } else if points.isEmpty {
+                Text("no branchable turns yet")
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(Theme.textFaint)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 12)
+            }
+            ForEach(Array(points.prefix(5).enumerated()), id: \.element.id) { idx, point in
+                Button { onPick(point) } label: {
+                    HStack(spacing: 8) {
+                        Text("⑂")
+                            .font(Theme.mono(11))
+                            .foregroundStyle(Theme.accent.opacity(0.7))
+                        Text("\(point.preview)\(idx == 0 ? " — latest" : "")")
+                            .font(Theme.mono(11, .medium))
+                            .foregroundStyle(Theme.text)
+                            .lineLimit(1)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 Divider().overlay(Theme.hairlineFaint)
             }
+        }
+        .task {
+            points = await app.engine?.branchPoints() ?? []
+            loading = false
         }
         .background(Theme.sheet)
         .clipShape(RoundedRectangle(cornerRadius: 12))

@@ -20,6 +20,10 @@ struct SettingsView: View {
                     SectionHeader(title: "Behavior")
                         .padding(.bottom, 7)
                     behaviorCard
+                        .padding(.bottom, 12)
+                    SectionHeader(title: "Notifications — away from home")
+                        .padding(.bottom, 7)
+                    WebhookCard()
                 }
                 .padding(.horizontal, Theme.streamGutter)
                 .padding(.top, 12)
@@ -145,7 +149,12 @@ struct SettingsView: View {
             Divider().overlay(Theme.hairlineFaint)
             settingRow("Snapcompact", value: "auto @ 85%")
             Divider().overlay(Theme.hairlineFaint)
-            settingRow("Rules", value: "\(app.rulesSummary) ▸")
+            Button {
+                app.path.append(.rules)
+            } label: {
+                settingRow("Always-allow rules", value: "review ▸")
+            }
+            .buttonStyle(.plain)
             Divider().overlay(Theme.hairlineFaint)
             settingRow("MCP servers", value: "\(app.mcpSummary) ▸")
             Divider().overlay(Theme.hairlineFaint)
@@ -197,6 +206,75 @@ struct SettingsView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    private struct WebhookCard: View {
+        @Environment(AppModel.self) private var app
+        @State private var url = ""
+        @State private var status: String?
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("When no device is connected, the bridge POSTs approvals and turn-done alerts here — e.g. an ntfy.sh topic you subscribe to in the ntfy app.")
+                    .font(Theme.sans(11))
+                    .foregroundStyle(Theme.text(0.5))
+                    .lineSpacing(3)
+                TextField("https://ntfy.sh/your-private-topic", text: $url)
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.text)
+                    .tint(Theme.accent)
+                    .keyboardType(.URL)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .padding(.horizontal, 11)
+                    .frame(height: 36)
+                    .background(Theme.codeBlock)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineStrong))
+                HStack(spacing: 8) {
+                    Button {
+                        Task {
+                            let ok = await app.engine?.registerWebhook(url.trimmingCharacters(in: .whitespaces)) ?? false
+                            status = ok ? (url.isEmpty ? "webhook removed" : "saved to bridge") : "couldn't reach bridge"
+                        }
+                    } label: {
+                        Text("Save")
+                            .font(Theme.sans(12, .semibold))
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 32)
+                            .background(Theme.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(PressableStyle())
+                    Button {
+                        Task {
+                            let ok = await app.engine?.testWebhook() ?? false
+                            status = ok ? "test sent — check your ntfy app" : "test failed — save a URL first"
+                        }
+                    } label: {
+                        Text("Send test")
+                            .font(Theme.sans(12, .medium))
+                            .foregroundStyle(Theme.accent)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 32)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.accent.opacity(0.5)))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                if let status {
+                    Text(status)
+                        .font(Theme.mono(10))
+                        .foregroundStyle(status.contains("fail") || status.contains("couldn't") ? Theme.danger : Theme.success)
+                }
+            }
+            .padding(13)
+            .background(Theme.raisedAlt)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairlineFaint))
+            .onAppear { url = app.webhookURL }
+        }
     }
 
     private func settingRow(_ label: String, value: String) -> some View {

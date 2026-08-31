@@ -71,12 +71,20 @@ export class LiveSession {
 
 	// -- commands ------------------------------------------------------------
 
-	async prompt(message: string, mode: PromptMode = "chat", streamingBehavior?: "steer" | "followUp"): Promise<void> {
+	async prompt(
+		message: string,
+		mode: PromptMode = "chat",
+		streamingBehavior?: "steer" | "followUp",
+		images?: Array<{ data: string; mimeType: string }>,
+	): Promise<void> {
 		const text = mode === "chat" ? message : `/${mode} ${message}`;
 		const res = await this.proc.request({
 			type: "prompt",
 			message: text,
 			...(streamingBehavior ? { streamingBehavior } : {}),
+			...(images && images.length > 0
+				? { images: images.map(i => ({ type: "image", data: i.data, mimeType: i.mimeType })) }
+				: {}),
 		});
 		if (!res.success) throw new Error(res.error ?? "prompt failed");
 	}
@@ -122,6 +130,48 @@ export class LiveSession {
 		const res = await this.proc.request({ type: "get_messages_page", cursor, limit });
 		if (!res.success) throw new Error(res.error ?? "get_messages_page failed");
 		return res.data;
+	}
+
+	/**
+	 * Branchable entry points, read straight from the session jsonl (the RPC
+	 * message APIs don't expose entry ids). Returns user-message entries,
+	 * oldest first, each with a short preview for the branch sheet.
+	 */
+	async getEntries(): Promise<Array<{ id: string; role: string; preview: string; timestamp: string }>> {
+		const file = this.state?.sessionFile;
+		if (!file) return [];
+		let text: string;
+		try {
+			text = await Bun.file(file).text();
+		} catch {
+			return [];
+		}
+		const out: Array<{ id: string; role: string; preview: string; timestamp: string }> = [];
+		for (const line of text.split("\n")) {
+			if (!line.includes('"type":"message"')) continue;
+			try {
+				const entry = JSON.parse(line) as {
+					type?: string;
+					id?: string;
+					timestamp?: string;
+					message?: { role?: string; content?: Array<{ type?: string; text?: string }> };
+				};
+				if (entry.type !== "message" || !entry.id) continue;
+				const role = entry.message?.role ?? "";
+				if (role !== "user" && role !== "assistant") continue;
+				const textBlock = entry.message?.content?.find(b => b.type === "text" && b.text?.trim());
+				if (!textBlock?.text) continue;
+				out.push({
+					id: entry.id,
+					role,
+					preview: textBlock.text.trim().slice(0, 80),
+					timestamp: entry.timestamp ?? "",
+				});
+			} catch {
+				/* torn line */
+			}
+		}
+		return out;
 	}
 
 	async getSubagents(): Promise<unknown> {

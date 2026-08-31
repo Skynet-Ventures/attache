@@ -30,6 +30,10 @@ final class DemoEngine: Engine {
         app.focusedAgentId = "reviewer"
         app.plan = Self.initialPlan()
         app.roles = Self.initialRoles()
+        app.enabledModels = [
+            "fireworks/deepseek-v4-flash", "x-ai/grok-4.5", "anthropic/claude-opus-4.6",
+            "anthropic/claude-sonnet-4.5", "zai/glm-5.2",
+        ]
         app.approvalMode = .write
         app.rulesSummary = "12 · from 4 formats"
         app.mcpSummary = "3 connected"
@@ -108,9 +112,10 @@ final class DemoEngine: Engine {
 
     // MARK: Chat
 
-    func send(_ text: String, mode: ComposerMode, role: String) {
+    func send(_ text: String, mode: ComposerMode, role: String, images: [AttachedImage] = []) {
         guard let app else { return }
-        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        var trimmed = text.trimmingCharacters(in: .whitespaces)
+        if !images.isEmpty { trimmed += " 📎\(images.count)" }
         guard !trimmed.isEmpty else { return }
         if app.offline {
             app.append(.steer("queued: \"\(trimmed)\" — sends when devbox reconnects"))
@@ -274,10 +279,72 @@ final class DemoEngine: Engine {
 
     // MARK: Branch / diff
 
-    func branch(fromEntry: ChatItem) {
+    func branchPoints() async -> [BranchPoint] {
+        [
+            BranchPoint(id: "e14", role: "user", preview: "Memory climbs ~40MB/min under thumbnail load until OOM…"),
+            BranchPoint(id: "e13", role: "user", preview: "before advisor note"),
+            BranchPoint(id: "e12", role: "user", preview: "before pool.go edit"),
+        ]
+    }
+
+    func branch(entryId: String, preview: String) {
         guard let app else { return }
-        let n = fromEntry.turn
-        app.append(.steer("⑂ branched from turn \(n) → \"leak fix — alt approach\" · this session untouched"))
+        app.append(.steer("⑂ branched before \"\(String(preview.prefix(48)))\" → \"leak fix — alt approach\" · this session untouched"))
+    }
+
+    func answerDialog(itemId: String, value: String?, confirmed: Bool?) {
+        guard let app else { return }
+        guard let idx = app.items.firstIndex(where: { $0.id == itemId }),
+              case .dialog(var dialog) = app.items[idx].kind else { return }
+        dialog.answered = value ?? (confirmed == true ? "yes" : "no")
+        app.items[idx].kind = .dialog(dialog)
+        reply("Got it — proceeding with \(dialog.answered ?? "that").", bump: 1)
+    }
+
+    func pickRole(_ role: String) {
+        guard let app else { return }
+        app.composerRole = role
+        if let model = app.roles.first(where: { $0.name == role }) {
+            app.modelLabel = model.model
+            app.append(.steer("model → \(model.model)"))
+        }
+    }
+
+    func setModel(_ fullModel: String) {
+        guard let app else { return }
+        let short = fullModel.split(separator: "/").last.map(String.init) ?? fullModel
+        app.modelLabel = short
+        app.append(.steer("model → \(short)"))
+    }
+
+    private var demoRules = [
+        AlwaysRuleModel(id: "r1", tool: "bash", pattern: "rm -rf tmp/profiles.old", note: "allow bash: rm -rf tmp/profiles.old…", createdAt: "2026-08-30"),
+        AlwaysRuleModel(id: "r2", tool: "mcp__github_create_pr", pattern: nil, note: "allow tool mcp__github_create_pr", createdAt: "2026-08-28"),
+    ]
+
+    func listRules() async -> [AlwaysRuleModel] { demoRules }
+
+    func deleteRule(id: String) {
+        demoRules.removeAll { $0.id == id }
+    }
+
+    func registerWebhook(_ url: String) async -> Bool {
+        app?.webhookURL = url
+        UserDefaults.standard.set(url, forKey: "push.webhook")
+        return true
+    }
+
+    func testWebhook() async -> Bool { true }
+
+    func dispatchSubagent(task: String) {
+        guard let app else { return }
+        let name = "agent-\(app.subagents.count + 1)"
+        app.subagents.append(SubagentModel(
+            id: name, name: name, status: .queued,
+            lastLine: "queued: \(String(task.prefix(60)))",
+            meta: "dispatched just now", handle: "agent://new",
+            transcript: [SubagentLine(kind: .text, text: "Queued: \(task)")]
+        ))
     }
 
     func diffVerdict(approved: Bool, note: String?) {

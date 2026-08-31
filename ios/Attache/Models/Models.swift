@@ -152,6 +152,19 @@ struct ApprovalModel: Identifiable, Equatable {
     enum Status: Equatable { case pending, allowed, always, denied }
 }
 
+/// A non-approval question from omp or an extension (`ask` tool, dialogs).
+struct DialogModel: Identifiable, Equatable {
+    enum Method: String { case select, confirm, input }
+    var id: String                 // extension_ui_request id
+    var method: Method
+    var title: String
+    var message: String?
+    var options: [String]
+    var placeholder: String?
+    var answered: String? = nil    // chosen option / typed text / "yes"/"no"
+    var cancelled = false
+}
+
 enum ChatItemKind: Equatable {
     case user(String)
     case agentText(String)
@@ -160,6 +173,7 @@ enum ChatItemKind: Equatable {
     case toolCard(ToolCardModel)
     case advisor(AdvisorNoteModel)
     case approval(ApprovalModel)
+    case dialog(DialogModel)
     case notice(String)
 }
 
@@ -227,8 +241,32 @@ struct GoalModel: Equatable {
 struct RoleModel: Identifiable, Equatable {
     var id: String { name }
     var name: String
+    /// Short display name ("GLM-5.3-Flash-EXL3").
     var model: String
+    /// Full selector for set_model ("glm-sparks/GLM-5.3-Flash-EXL3").
+    var fullModel: String = ""
     var thinking: ThinkingLevel
+}
+
+struct AlwaysRuleModel: Identifiable, Equatable {
+    var id: String
+    var tool: String
+    var pattern: String?
+    var note: String
+    var createdAt: String
+}
+
+struct BranchPoint: Identifiable, Equatable {
+    var id: String        // omp entry id
+    var role: String
+    var preview: String
+}
+
+/// A photo attached in the composer, ready for omp's `images` prompt field.
+struct AttachedImage: Identifiable, Equatable {
+    var id = UUID()
+    var jpegData: Data
+    var mimeType: String { "image/jpeg" }
 }
 
 // MARK: - Full-screen diff

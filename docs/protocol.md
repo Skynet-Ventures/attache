@@ -45,7 +45,7 @@ Envelope: `{ id?: string, type: string, ...payload }`.
 | `attach` | `{ sessionId? , sessionPath?, cwd? }` | attach to a live session, resume a stored one, or start fresh in `cwd`. Result: `{ sessionId }`, followed by `session_state` + `history` events |
 | `detach` | `{ sessionId }` | stop receiving events (omp process stays alive) |
 | `kill_session` | `{ sessionId }` | dispose the omp process |
-| `prompt` | `{ sessionId, message, mode?: "chat"\|"plan"\|"goal"\|"loop", role?, streamingBehavior?: "steer"\|"followUp" }` | `mode`/`role` map to omp slash-commands / role models |
+| `prompt` | `{ sessionId, message, mode?: "chat"\|"plan"\|"goal"\|"loop", streamingBehavior?: "steer"\|"followUp", images?: [{data, mimeType}] }` | `mode` maps to omp slash-commands; `images` are base64 payloads forwarded to omp's `ImageContent` |
 | `steer` | `{ sessionId, message }` | interrupt-path queued message |
 | `follow_up` | `{ sessionId, message }` | post-turn queued message |
 | `abort` | `{ sessionId }` | stop the current turn |
@@ -66,7 +66,10 @@ Envelope: `{ id?: string, type: string, ...payload }`.
 | `rename_project` | `{ projectId, name }` | |
 | `delete_project` | `{ projectId }` | sessions fall back to auto-grouping by cwd |
 | `assign_cwd` | `{ cwd, projectId \| null }` | claim a session directory for a project (null unassigns) |
-| `register_push` | `{ transport: "webhook"\|"apns", target }` | where to deliver offline notifications (see docs/notifications.md) |
+| `register_push` | `{ transport: "webhook"\|"apns", target }` | where to deliver offline notifications; empty target unregisters (see docs/notifications.md) |
+| `test_push` | `{}` | sends a test payload to this device's registered target |
+| `get_entries` | `{ sessionId }` | branchable entry ids read from the session jsonl (`{ entries: [{id, role, preview, timestamp}] }`) |
+| `ui_response` | `{ sessionId, requestId, value? \| confirmed? \| cancelled? }` | answer a forwarded extension dialog (omp `ask`, select/confirm/input) |
 
 ## Server → client events
 

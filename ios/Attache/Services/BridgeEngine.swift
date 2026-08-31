@@ -11,6 +11,10 @@ final class BridgeEngine: Engine {
     /// toolCallId -> chat item id, for updating running tool cards.
     private var toolItems: [String: String] = [:]
     private var subagentsById: [String: SubagentModel] = [:]
+    /// What we're attached to, for automatic re-attach after reconnects.
+    private var currentSummary: SessionSummary?
+    private var lastSeq: Int = 0
+    private var reloadingAfterGap = false
 
     init(pairing: PairingInfo) {
         self.pairing = pairing
@@ -40,7 +44,10 @@ final class BridgeEngine: Engine {
             case .connected:
                 app.offline = false
                 app.machine.link = .online(latencyMs: 0)
-                Task { await self.handshake() }
+                Task {
+                    await self.handshake()
+                    await self.reattachIfNeeded()
+                }
             case .offline:
                 app.offline = true
                 app.machine.link = .offline
@@ -77,6 +84,13 @@ final class BridgeEngine: Engine {
                let parsed = ApprovalModeSetting(rawValue: mode) {
                 app.approvalMode = parsed
             }
+            if let models = hello["enabledModels"]?.arrayValue {
+                app.enabledModels = models.compactMap(\.stringValue)
+            }
+            // Keep the bridge's push registration in sync with local settings.
+            if !app.webhookURL.isEmpty {
+                _ = try? await client.send("register_push", ["transport": "webhook", "target": app.webhookURL])
+            }
             app.pairedMachines = [
                 PairedMachine(
                     id: "paired", name: app.machine.name, state: .online(latencyMs: 0),
@@ -94,7 +108,7 @@ final class BridgeEngine: Engine {
         guard let name = value["role"]?.stringValue, let model = value["model"]?.stringValue else { return nil }
         let shortModel = model.split(separator: "/").last.map(String.init) ?? model
         let level = value["thinkingLevel"]?.stringValue.flatMap(ThinkingLevel.init(rawValue:)) ?? .medium
-        return RoleModel(name: name, model: shortModel, thinking: level)
+        return RoleModel(name: name, model: shortModel, fullModel: model, thinking: level)
     }
 
     // MARK: Sessions
@@ -149,6 +163,9 @@ final class BridgeEngine: Engine {
             app.sessionTitle = summary.title
             app.branchLabel = summary.project
             app.sessionId = nil
+            self.currentSummary = summary
+            self.lastSeq = 0
+            self.toolItems = [:]
             app.path.append(.stream)
             do {
                 var payload: [String: Any] = [:]
@@ -168,6 +185,50 @@ final class BridgeEngine: Engine {
             } catch {
                 app.append(.notice("couldn't attach: \((error as? BridgeError)?.message ?? "unknown error")"))
             }
+        }
+    }
+
+    /// After a reconnect the new socket has no session subscriptions: re-attach
+    /// to whatever the user had open and rebuild the transcript. If the bridge
+    /// restarted (old session id gone), fall back to resuming by session path.
+    private func reattachIfNeeded() async {
+        guard let client, let app, let summary = currentSummary else { return }
+        let previousId = app.sessionId
+        do {
+            var payload: [String: Any] = [:]
+            if let previousId {
+                payload["sessionId"] = previousId
+            } else if !summary.sessionPath.isEmpty {
+                payload["sessionPath"] = summary.sessionPath
+                payload["cwd"] = summary.cwd
+            } else {
+                payload["cwd"] = summary.cwd
+            }
+            let result = try await client.send("attach", payload)
+            app.sessionId = result["sessionId"]?.stringValue
+        } catch {
+            // Old id is stale (bridge restarted): resume the stored session.
+            guard !summary.sessionPath.isEmpty else { return }
+            guard let result = try? await client.send("attach", [
+                "sessionPath": summary.sessionPath, "cwd": summary.cwd,
+            ]) else { return }
+            app.sessionId = result["sessionId"]?.stringValue
+        }
+        await reloadTranscript()
+        refreshSubagents()
+    }
+
+    /// Full transcript rebuild — used after reconnects and seq gaps.
+    private func reloadTranscript() async {
+        guard let app else { return }
+        app.items = []
+        toolItems = [:]
+        streamingItemId = nil
+        lastSeq = 0
+        await loadHistory()
+        // Re-append any still-pending approvals so they stay answerable inline.
+        for approval in app.approvals where approval.status == .pending && approval.sessionId == app.sessionId {
+            app.items.append(ChatItem(kind: .approval(approval), turn: app.turnNo))
         }
     }
 
@@ -192,6 +253,16 @@ final class BridgeEngine: Engine {
         let message = value["message"] ?? value
         let role = message["role"]?.stringValue ?? ""
         let blocks = message["content"]?.arrayValue ?? []
+
+        // Tool results arrive as their own messages; fold them into the card.
+        if role == "toolResult" || role == "tool" {
+            let callId = message["toolCallId"]?.stringValue ?? value["toolCallId"]?.stringValue
+            let text = blocks.compactMap { $0["text"]?.stringValue }.joined(separator: "\n")
+            let isError = message["isError"]?.boolValue ?? false
+            applyHistoryToolResult(callId: callId, output: text, isError: isError)
+            return
+        }
+
         for block in blocks {
             switch block["type"]?.stringValue {
             case "text":
@@ -211,11 +282,48 @@ final class BridgeEngine: Engine {
                 }
             case "toolCall", "tool_call", "toolUse":
                 let name = block["name"]?.stringValue ?? block["toolName"]?.stringValue ?? "tool"
-                app.append(.toolCard(toolCard(name: name, args: block["arguments"] ?? block["input"], result: nil)))
+                let item = ChatItem(
+                    kind: .toolCard(toolCard(name: name, args: block["arguments"] ?? block["input"], result: nil)),
+                    turn: app.turnNo
+                )
+                app.items.append(item)
+                if let callId = block["id"]?.stringValue ?? block["toolCallId"]?.stringValue {
+                    toolItems[callId] = item.id
+                }
+            case "toolResult", "tool_result":
+                let callId = block["toolCallId"]?.stringValue ?? block["id"]?.stringValue
+                let text = block["content"]?.arrayValue?.compactMap { $0["text"]?.stringValue }.joined(separator: "\n")
+                    ?? block["text"]?.stringValue ?? ""
+                applyHistoryToolResult(callId: callId, output: text, isError: block["isError"]?.boolValue ?? false)
             default:
                 continue
             }
         }
+    }
+
+    /// Attach output preview + status to a previously converted tool card.
+    private func applyHistoryToolResult(callId: String?, output: String, isError: Bool) {
+        guard let app else { return }
+        let itemId = callId.flatMap { toolItems[$0] } ?? app.items.last(where: {
+            if case .toolCard(let t) = $0.kind { return t.meta.isEmpty && t.detailLines.isEmpty }
+            return false
+        })?.id
+        guard let itemId,
+              let idx = app.items.firstIndex(where: { $0.id == itemId }),
+              case .toolCard(var card) = app.items[idx].kind else { return }
+        let lines = output.split(separator: "\n", omittingEmptySubsequences: true)
+        if card.meta.isEmpty {
+            card.meta = isError ? "✕ error" : String((lines.first ?? "done").prefix(28))
+        }
+        if card.detailLines.isEmpty, lines.count > 1 {
+            card.detailLines = lines.prefix(8).map {
+                DiffLine(kind: .context, text: String($0.prefix(90)))
+            }
+            if lines.count > 8 {
+                card.detailLines.append(DiffLine(kind: .context, text: "+ \(lines.count - 8) more lines"))
+            }
+        }
+        app.items[idx].kind = .toolCard(card)
     }
 
     // MARK: Event handling
@@ -227,6 +335,19 @@ final class BridgeEngine: Engine {
             applyState(frame["state"])
         case "stream":
             guard frame["sessionId"]?.stringValue == app.sessionId else { return }
+            if let seq = frame["seq"]?.intValue {
+                if lastSeq > 0, seq > lastSeq + 1, !reloadingAfterGap {
+                    // Missed events (reconnect race): rebuild from history.
+                    reloadingAfterGap = true
+                    lastSeq = seq
+                    Task { [weak self] in
+                        await self?.reloadTranscript()
+                        self?.reloadingAfterGap = false
+                    }
+                    return
+                }
+                lastSeq = max(lastSeq, seq)
+            }
             handleStreamEvent(frame["event"] ?? .null)
         case "approval_request":
             handleApprovalRequest(frame["approval"] ?? .null)
@@ -311,9 +432,52 @@ final class BridgeEngine: Engine {
             app.append(.notice("session process ended on \(app.machine.name)"))
             app.turnActive = false
             app.typing = false
+        case "extension_ui_request":
+            handleUIRequest(event)
         default:
             break
         }
+    }
+
+    /// Non-approval extension dialogs (omp's `ask` tool, extension prompts):
+    /// render an answerable card so the agent never hangs on us.
+    private func handleUIRequest(_ event: JSONValue) {
+        guard let app, let id = event["id"]?.stringValue else { return }
+        switch event["method"]?.stringValue {
+        case "select", "confirm", "input":
+            let method = DialogModel.Method(rawValue: event["method"]!.stringValue!) ?? .confirm
+            let dialog = DialogModel(
+                id: id,
+                method: method,
+                title: event["title"]?.stringValue ?? "omp is asking",
+                message: event["message"]?.stringValue,
+                options: event["options"]?.arrayValue?.compactMap(\.stringValue) ?? [],
+                placeholder: event["placeholder"]?.stringValue
+            )
+            app.items.append(ChatItem(kind: .dialog(dialog), turn: app.turnNo))
+            NotificationManager.shared.notifyAdvisor(sessionTitle: "\(app.sessionTitle) · needs input")
+        case "cancel":
+            // A previously asked dialog was withdrawn.
+            if let target = event["targetId"]?.stringValue ?? event["id"]?.stringValue {
+                markDialog(requestId: target) { $0.cancelled = true }
+            }
+        case "notify":
+            if let message = event["message"]?.stringValue {
+                app.append(.notice(message))
+            }
+        default:
+            break
+        }
+    }
+
+    private func markDialog(requestId: String, _ mutate: (inout DialogModel) -> Void) {
+        guard let app else { return }
+        guard let idx = app.items.firstIndex(where: {
+            if case .dialog(let d) = $0.kind { return d.id == requestId }
+            return false
+        }), case .dialog(var dialog) = app.items[idx].kind else { return }
+        mutate(&dialog)
+        app.items[idx].kind = .dialog(dialog)
     }
 
     private func handleDelta(_ event: JSONValue) {
@@ -533,33 +697,43 @@ final class BridgeEngine: Engine {
 
     // MARK: Engine intents
 
-    func send(_ text: String, mode: ComposerMode, role: String) {
+    func send(_ text: String, mode: ComposerMode, role: String, images: [AttachedImage] = []) {
         Task { [weak self] in
             guard let self, let client = self.client, let app = self.app,
                   let sessionId = app.sessionId else { return }
             let trimmed = text.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty else { return }
+            guard !trimmed.isEmpty || !images.isEmpty else { return }
             if app.offline {
                 app.append(.steer("queued: \"\(trimmed)\" — sends when \(app.machine.name) reconnects"))
                 return
             }
             let prefix = mode == .chat ? "" : "[\(mode.rawValue.lowercased())] "
-            app.append(.user(prefix + trimmed))
+            let attachNote = images.isEmpty ? "" : " 📎\(images.count)"
+            app.append(.user(prefix + trimmed + attachNote))
             if mode == .goal {
                 app.goal = GoalModel(objective: trimmed, turns: 1, budget: 40, active: true)
             }
             do {
                 var payload: [String: Any] = [
                     "sessionId": sessionId,
-                    "message": trimmed,
+                    "message": trimmed.isEmpty ? "See the attached image(s)." : trimmed,
                     "mode": mode.rawValue.lowercased(),
                 ]
                 if app.turnActive { payload["streamingBehavior"] = "steer" }
+                if !images.isEmpty {
+                    payload["images"] = images.map {
+                        ["data": $0.jpegData.base64EncodedString(), "mimeType": $0.mimeType]
+                    }
+                }
                 try await client.send("prompt", payload)
             } catch {
                 app.append(.notice("send failed: \((error as? BridgeError)?.message ?? "error")"))
             }
         }
+    }
+
+    func dispatchSubagent(task: String) {
+        send("Dispatch a subagent (task tool) for: \(task)", mode: .chat, role: app?.composerRole ?? "default")
     }
 
     func stopTurn() {
@@ -652,21 +826,110 @@ final class BridgeEngine: Engine {
         }
     }
 
-    func branch(fromEntry: ChatItem) {
+    func branchPoints() async -> [BranchPoint] {
+        guard let client, let sessionId = app?.sessionId else { return [] }
+        guard let data = try? await client.send("get_entries", ["sessionId": sessionId]) else { return [] }
+        let entries = (data["entries"]?.arrayValue ?? []).compactMap { entry -> BranchPoint? in
+            guard let id = entry["id"]?.stringValue, let role = entry["role"]?.stringValue else { return nil }
+            return BranchPoint(id: id, role: role, preview: entry["preview"]?.stringValue ?? "")
+        }
+        // Newest user turns first — those are the natural fork points.
+        return entries.filter { $0.role == "user" }.reversed()
+    }
+
+    func branch(entryId: String, preview: String) {
         Task { [weak self] in
             guard let self, let client = self.client, let app = self.app,
                   let sessionId = app.sessionId else { return }
-            guard let entryId = fromEntry.entryId else {
-                app.append(.notice("branching needs a synced entry id — try a recent turn"))
-                return
-            }
             do {
                 try await client.send("branch", ["sessionId": sessionId, "entryId": entryId])
-                app.append(.steer("⑂ branched from turn \(fromEntry.turn) · this session untouched"))
+                app.append(.steer("⑂ branched before \"\(String(preview.prefix(48)))\" · original untouched"))
+                await self.reloadTranscript()
             } catch {
                 app.append(.notice("branch failed: \((error as? BridgeError)?.message ?? "error")"))
             }
         }
+    }
+
+    func answerDialog(itemId: String, value: String?, confirmed: Bool?) {
+        Task { [weak self] in
+            guard let self, let client = self.client, let app = self.app,
+                  let sessionId = app.sessionId else { return }
+            guard let idx = app.items.firstIndex(where: { $0.id == itemId }),
+                  case .dialog(var dialog) = app.items[idx].kind else { return }
+            var payload: [String: Any] = ["sessionId": sessionId, "requestId": dialog.id]
+            if let value { payload["value"] = value }
+            if let confirmed { payload["confirmed"] = confirmed }
+            try? await client.send("ui_response", payload)
+            dialog.answered = value ?? (confirmed == true ? "yes" : "no")
+            app.items[idx].kind = .dialog(dialog)
+        }
+    }
+
+    func pickRole(_ role: String) {
+        guard let app else { return }
+        app.composerRole = role
+        guard let roleModel = app.roles.first(where: { $0.name == role }), !roleModel.fullModel.isEmpty else { return }
+        setModel(roleModel.fullModel)
+        Task { [weak self] in
+            guard let self, let client = self.client, let sessionId = self.app?.sessionId else { return }
+            try? await client.send("set_thinking_level", [
+                "sessionId": sessionId, "level": roleModel.thinking.rawValue,
+            ])
+        }
+    }
+
+    func setModel(_ fullModel: String) {
+        Task { [weak self] in
+            guard let self, let client = self.client, let app = self.app,
+                  let sessionId = app.sessionId else { return }
+            let selector = fullModel.replacingOccurrences(
+                of: ":(off|minimal|low|medium|high|xhigh|max)$", with: "", options: .regularExpression
+            )
+            let parts = selector.split(separator: "/", maxSplits: 1)
+            guard parts.count == 2 else { return }
+            do {
+                try await client.send("set_model", [
+                    "sessionId": sessionId, "provider": String(parts[0]), "modelId": String(parts[1]),
+                ])
+                app.append(.steer("model → \(parts[1])"))
+            } catch {
+                app.append(.notice("model switch failed: \((error as? BridgeError)?.message ?? "error")"))
+            }
+        }
+    }
+
+    func listRules() async -> [AlwaysRuleModel] {
+        guard let client else { return [] }
+        guard let data = try? await client.send("list_rules") else { return [] }
+        return (data["rules"]?.arrayValue ?? []).compactMap { rule in
+            guard let id = rule["id"]?.stringValue else { return nil }
+            return AlwaysRuleModel(
+                id: id,
+                tool: rule["tool"]?.stringValue ?? "tool",
+                pattern: rule["pattern"]?.stringValue,
+                note: rule["note"]?.stringValue ?? "",
+                createdAt: rule["createdAt"]?.stringValue ?? ""
+            )
+        }
+    }
+
+    func deleteRule(id: String) {
+        Task { [weak self] in
+            _ = try? await self?.client?.send("delete_rule", ["ruleId": id])
+        }
+    }
+
+    func registerWebhook(_ url: String) async -> Bool {
+        guard let client, let app else { return false }
+        app.webhookURL = url
+        UserDefaults.standard.set(url, forKey: "push.webhook")
+        return (try? await client.send("register_push", ["transport": "webhook", "target": url])) != nil
+    }
+
+    func testWebhook() async -> Bool {
+        guard let client else { return false }
+        return (try? await client.send("test_push")) != nil
     }
 
     func diffVerdict(approved: Bool, note: String?) {

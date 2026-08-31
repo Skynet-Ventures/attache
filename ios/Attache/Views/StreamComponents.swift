@@ -67,6 +67,9 @@ struct ChatItemView: View {
             } else {
                 ResolvedInlineApproval(approval: approval)
             }
+
+        case .dialog(let dialog):
+            DialogCard(itemId: item.id, dialog: dialog)
         }
     }
 
@@ -378,6 +381,141 @@ struct ResolvedInlineApproval: View {
         case .always: "allowed · rule saved"
         default: "allowed once"
         }
+    }
+}
+
+// MARK: - Extension dialog (omp `ask`, extension select/confirm/input)
+
+struct DialogCard: View {
+    @Environment(AppModel.self) private var app
+    let itemId: String
+    let dialog: DialogModel
+    @State private var inputText = ""
+
+    var body: some View {
+        if let answered = dialog.answered {
+            HStack(spacing: 7) {
+                Text("✓")
+                Text("answered: \(answered)")
+                Text("· \(dialog.title)")
+                    .foregroundStyle(Theme.textFaint)
+                    .lineLimit(1)
+            }
+            .font(Theme.mono(11, .medium))
+            .foregroundStyle(Theme.success)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if dialog.cancelled {
+            HStack(spacing: 7) {
+                Text("✕").foregroundStyle(Theme.textFaint)
+                Text("question withdrawn · \(dialog.title)").foregroundStyle(Theme.textFaint)
+            }
+            .font(Theme.mono(11))
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 7) {
+                    Text("? QUESTION")
+                        .font(Theme.mono(9.5, .semibold))
+                        .tracking(1)
+                        .foregroundStyle(Theme.accent)
+                    Text("omp is waiting on you")
+                        .font(Theme.mono(9.5))
+                        .foregroundStyle(Theme.text(0.4))
+                    Spacer()
+                }
+                .padding(.bottom, 6)
+                Text(dialog.title)
+                    .font(Theme.sans(12.5, .medium))
+                    .foregroundStyle(Theme.text(0.9))
+                    .lineSpacing(3)
+                    .padding(.bottom, dialog.message == nil ? 9 : 3)
+                if let message = dialog.message {
+                    Text(message)
+                        .font(Theme.sans(11.5))
+                        .foregroundStyle(Theme.text(0.6))
+                        .lineSpacing(3)
+                        .padding(.bottom, 9)
+                }
+                switch dialog.method {
+                case .select:
+                    VStack(spacing: 6) {
+                        ForEach(dialog.options, id: \.self) { option in
+                            Button {
+                                app.engine?.answerDialog(itemId: itemId, value: option, confirmed: nil)
+                            } label: {
+                                Text(option)
+                                    .font(Theme.sans(12, .medium))
+                                    .foregroundStyle(Theme.text(0.85))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 32)
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.accent.opacity(0.35)))
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                case .confirm:
+                    HStack(spacing: 8) {
+                        Button {
+                            app.engine?.answerDialog(itemId: itemId, value: nil, confirmed: false)
+                        } label: {
+                            Text("No")
+                                .font(Theme.sans(12, .medium))
+                                .foregroundStyle(Theme.text(0.7))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 32)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.15)))
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        Button {
+                            app.engine?.answerDialog(itemId: itemId, value: nil, confirmed: true)
+                        } label: {
+                            Text("Yes")
+                                .font(Theme.sans(12, .semibold))
+                                .foregroundStyle(.black)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 32)
+                                .background(Theme.accent)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(PressableStyle())
+                    }
+                case .input:
+                    HStack(spacing: 8) {
+                        TextField(dialog.placeholder ?? "type an answer…", text: $inputText)
+                            .font(Theme.sans(12))
+                            .foregroundStyle(Theme.text)
+                            .tint(Theme.accent)
+                            .onSubmit(sendInput)
+                            .padding(.horizontal, 11)
+                            .frame(height: 32)
+                            .background(Theme.codeBlock)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineStrong))
+                        Button(action: sendInput) {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.black)
+                                .frame(width: 32, height: 32)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.accent))
+                        }
+                        .buttonStyle(PressableStyle(scale: 0.92))
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.accent.opacity(0.35)))
+        }
+    }
+
+    private func sendInput() {
+        let text = inputText.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return }
+        app.engine?.answerDialog(itemId: itemId, value: text, confirmed: nil)
     }
 }
 

@@ -42,17 +42,23 @@ export class Push {
 		}
 	}
 
+	/** Register, replace, or (with an empty target) remove a device's target. */
 	async register(target: PushTarget): Promise<void> {
 		this.targets = this.targets.filter(
 			t => !(t.deviceId === target.deviceId && t.transport === target.transport),
 		);
-		this.targets.push(target);
+		if (target.target.trim().length > 0) this.targets.push(target);
 		await mkdir(attacheDir(), { recursive: true });
 		await writeFile(PUSH_FILE(), JSON.stringify(this.targets, null, 2));
 	}
 
-	async send(payload: PushPayload): Promise<void> {
+	targetFor(deviceId: string): PushTarget | undefined {
+		return this.targets.find(t => t.deviceId === deviceId);
+	}
+
+	async send(payload: PushPayload, onlyDeviceId?: string): Promise<void> {
 		for (const target of this.targets) {
+			if (onlyDeviceId && target.deviceId !== onlyDeviceId) continue;
 			if (target.transport === "webhook") {
 				try {
 					await fetch(target.target, {
