@@ -1,0 +1,49 @@
+{
+  "" : {
+    "diagnostics" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgets-primary.dia",
+    "emit-module-dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgets-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgets-primary-emit-module.dia",
+    "pch" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgets-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgets-primary.swiftdeps"
+  },
+  "/Users/joshua/attache/ios/Attache/Theme/Theme.swift" : {
+    "const-values" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/Theme.swiftconstvalues",
+    "dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/Theme.d",
+    "diagnostics" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/Theme.dia",
+    "index-unit-output-path" : "/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/Theme.o",
+    "llvm-bc" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/Theme.bc",
+    "object" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/Theme.o",
+    "swift-dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/Theme.swiftdeps",
+    "swiftmodule" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/Theme~partial.swiftmodule"
+  },
+  "/Users/joshua/attache/ios/AttacheWidgets/AttacheLiveActivity.swift" : {
+    "const-values" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheLiveActivity.swiftconstvalues",
+    "dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheLiveActivity.d",
+    "diagnostics" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheLiveActivity.dia",
+    "index-unit-output-path" : "/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheLiveActivity.o",
+    "llvm-bc" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheLiveActivity.bc",
+    "object" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheLiveActivity.o",
+    "swift-dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheLiveActivity.swiftdeps",
+    "swiftmodule" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheLiveActivity~partial.swiftmodule"
+  },
+  "/Users/joshua/attache/ios/AttacheWidgets/AttacheWidgetsBundle.swift" : {
+    "const-values" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgetsBundle.swiftconstvalues",
+    "dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgetsBundle.d",
+    "diagnostics" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgetsBundle.dia",
+    "index-unit-output-path" : "/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgetsBundle.o",
+    "llvm-bc" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgetsBundle.bc",
+    "object" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgetsBundle.o",
+    "swift-dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgetsBundle.swiftdeps",
+    "swiftmodule" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheWidgetsBundle~partial.swiftmodule"
+  },
+  "/Users/joshua/attache/ios/Shared/AttacheActivityAttributes.swift" : {
+    "const-values" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheActivityAttributes.swiftconstvalues",
+    "dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheActivityAttributes.d",
+    "diagnostics" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheActivityAttributes.dia",
+    "index-unit-output-path" : "/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheActivityAttributes.o",
+    "llvm-bc" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheActivityAttributes.bc",
+    "object" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheActivityAttributes.o",
+    "swift-dependencies" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheActivityAttributes.swiftdeps",
+    "swiftmodule" : "/Users/joshua/attache/ios/build-device/Build/Intermediates.noindex/Attache.build/Debug-iphoneos/AttacheWidgets.build/Objects-normal/arm64/AttacheActivityAttributes~partial.swiftmodule"
+  }
+}

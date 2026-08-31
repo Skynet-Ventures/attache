@@ -1,0 +1,4 @@
+Target dependency graph (2 targets)
+Target 'Attache' in project 'Attache'
+➜ Explicit dependency on target 'AttacheWidgets' in project 'Attache'
+Target 'AttacheWidgets' in project 'Attache' (no dependencies)
