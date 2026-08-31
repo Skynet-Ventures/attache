@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Minimal dynamic JSON value — the bridge forwards omp event frames whose
 /// shapes evolve; we stay tolerant instead of strictly Codable.
@@ -167,6 +168,11 @@ final class BridgeClient {
     /// HTTP status captured from the latest WS handshake (nil if unknown).
     private var handshakeStatus: Int?
     private(set) var authFailure: AuthFailureKind?
+    /// Battery: while backgrounded, the socket, heartbeat, and reconnect
+    /// machinery are torn down entirely — iOS suspends us anyway, and fighting
+    /// that through background wakeups burned radio for nothing.
+    private var backgroundSuspended = false
+    private var lifecycleObservers: [NSObjectProtocol] = []
 
     var onEvent: ((String, JSONValue) -> Void)?
     var onStateChange: ((State) -> Void)?
@@ -223,11 +229,14 @@ final class BridgeClient {
         authFailure = nil
         reconnectPolicy.resetAfterSuccess()
         handshakeStatus = nil
+        installLifecycleObservers()
         openSocket()
     }
 
     func close() {
         closed = true
+        for observer in lifecycleObservers { NotificationCenter.default.removeObserver(observer) }
+        lifecycleObservers = []
         reconnectTask?.cancel()
         heartbeatTask?.cancel()
         offlineGraceTask?.cancel()
@@ -236,8 +245,46 @@ final class BridgeClient {
         state = .idle
     }
 
+    // MARK: Background suspend
+
+    private func installLifecycleObservers() {
+        guard lifecycleObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        lifecycleObservers.append(center.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.suspendForBackground() }
+        })
+        lifecycleObservers.append(center.addObserver(
+            forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.resumeFromBackground() }
+        })
+    }
+
+    private func suspendForBackground() {
+        guard !closed, !backgroundSuspended else { return }
+        backgroundSuspended = true
+        reconnectTask?.cancel()
+        heartbeatTask?.cancel()
+        offlineGraceTask?.cancel()
+        offlineGraceTask = nil
+        task?.cancel(with: .goingAway, reason: nil)
+        task = nil
+        // Not offline — asleep. Keeps the red banner from greeting every return.
+        if state == .connected || state == .offline { state = .connecting }
+    }
+
+    private func resumeFromBackground() {
+        guard !closed, backgroundSuspended else { return }
+        backgroundSuspended = false
+        reconnectPolicy.resetAfterSuccess()
+        openSocket()
+    }
+
     private func openSocket() {
-        guard !closed, authFailure == nil, let url = URL(string: "ws://\(host)/ws?token=\(token)") else { return }
+        guard !closed, !backgroundSuspended, authFailure == nil,
+              let url = URL(string: "ws://\(host)/ws?token=\(token)") else { return }
         // Stay in .connecting during silent retries; .offline (the red
         // banner) only arrives via the grace timer below.
         if state != .offline { state = .connecting }
@@ -358,7 +405,7 @@ final class BridgeClient {
     }
 
     private func scheduleReconnect(failure: TransportFailure) {
-        guard !closed, authFailure == nil else { return }
+        guard !closed, !backgroundSuspended, authFailure == nil else { return }
         switch reconnectPolicy.decide(failure: failure) {
         case .stop(let kind):
             enterAuthFailure(kind)

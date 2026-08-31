@@ -82,7 +82,10 @@ struct StreamView: View {
                                 Label("Session stats", systemImage: "chart.bar")
                             }
                         }
-                    Text("\(app.branchLabel) · turn \(app.turnNo) · \(app.elapsedLabel)")
+                    HStack(spacing: 0) {
+                        Text("\(app.branchLabel) · turn \(app.turnNo) · ")
+                        ElapsedText()
+                    }
                         .font(Theme.mono(10))
                         .foregroundStyle(Theme.textTertiary)
                         .lineLimit(1)
@@ -1369,5 +1372,28 @@ private struct StreamViewportKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
+    }
+}
+
+/// Battery: elapsed time derives itself on a 1s TimelineView schedule inside
+/// this leaf — nothing mutates AppModel per second, so the rest of the view
+/// tree never re-renders for the clock.
+struct ElapsedText: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            Text(label(at: context.date))
+        }
+    }
+
+    private func label(at now: Date) -> String {
+        let seconds: Int
+        if let start = app.turnStartedAt {
+            seconds = max(0, Int(now.timeIntervalSince(start))) + app.elapsedSec
+        } else {
+            seconds = app.elapsedSec
+        }
+        return "\(seconds / 60)m\(String(format: "%02d", seconds % 60))s"
     }
 }

@@ -345,6 +345,7 @@ extern "C" {
 #pragma clang diagnostic ignored "-Watimport-in-framework-header"
 #endif
 @import ObjectiveC;
+@import UIKit;
 @import UserNotifications;
 #endif
 
@@ -367,6 +368,18 @@ extern "C" {
 #endif
 
 #if defined(__OBJC__)
+
+@class UIApplication;
+@class NSData;
+/// Receives the APNs device token once the user has granted notification
+/// permission. Pure plumbing: the token is handed to PushRegistrar, which
+/// BridgeEngine forwards to every paired bridge as an <code>apns</code> push target.
+SWIFT_CLASS("_TtC7Attache11AppDelegate")
+@interface AppDelegate : NSObject <UIApplicationDelegate>
+- (void)application:(UIApplication * _Nonnull)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData * _Nonnull)deviceToken;
+- (void)application:(UIApplication * _Nonnull)application didFailToRegisterForRemoteNotificationsWithError:(NSError * _Nonnull)error;
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+@end
 
 @class UNUserNotificationCenter;
 @class UNNotification;

@@ -86,10 +86,7 @@ struct ChatItemView: View {
     }
 
     private func markdownish(_ text: String) -> AttributedString {
-        (try? AttributedString(
-            markdown: text,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        )) ?? AttributedString(text)
+        MarkdownCache.render(text)
     }
 
     private func messagePreview(_ text: String) -> String {
@@ -769,5 +766,25 @@ struct ApprovalButtons: View {
         } message: {
             Text("Scope decides where the always-allow rule applies.")
         }
+    }
+}
+
+/// Battery: markdown was re-parsed for every visible item on every re-render
+/// (which multiplies with streaming deltas). Cache the parse by content.
+@MainActor
+enum MarkdownCache {
+    private static var cache: [String: AttributedString] = [:]
+
+    static func render(_ text: String) -> AttributedString {
+        if let hit = cache[text] { return hit }
+        let rendered = (try? AttributedString(
+            markdown: text,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        )) ?? AttributedString(text)
+        // Streaming produces many short-lived prefixes of the same message;
+        // a periodic wholesale drop keeps the cache from growing unbounded.
+        if cache.count > 600 { cache.removeAll(keepingCapacity: true) }
+        cache[text] = rendered
+        return rendered
     }
 }

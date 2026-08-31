@@ -14,51 +14,75 @@
 		</data>
 		<key>Assets.car</key>
 		<data>
-		hjF73MNTEFKMqD3NHIDBIv4ePzY=
+		1t5L1MbjIV6fTRJSSvm7udSizeE=
 		</data>
 		<key>Attache.debug.dylib</key>
 		<data>
-		fO5tCMgf+lb7rWpbq/gxdEUKBec=
+		tH5a+jfm0BDASbwAwWJBuScYsq4=
 		</data>
 		<key>Info.plist</key>
 		<data>
-		MwvdSOPF386zQ6qCDWp9CFHHE1c=
+		1ENXybr5+GUBV1qQjpUnKTJSJmw=
 		</data>
 		<key>PkgInfo</key>
 		<data>
 		n57qDP4tZfLD1rCS43W0B4LQjzE=
 		</data>
+		<key>PlugIns/AttacheNotificationService.appex/AttacheNotificationService</key>
+		<data>
+		++3635ZugDlI0Za04u0JGyr4qP4=
+		</data>
+		<key>PlugIns/AttacheNotificationService.appex/AttacheNotificationService.debug.dylib</key>
+		<data>
+		3qj1Jsu8sJoxErvkUtw4lC9T8Vk=
+		</data>
+		<key>PlugIns/AttacheNotificationService.appex/Info.plist</key>
+		<data>
+		IIv226bOU0d1yM0sitFvoNhGgxc=
+		</data>
+		<key>PlugIns/AttacheNotificationService.appex/_CodeSignature/CodeResources</key>
+		<data>
+		NeejKAqR6t1JktxZ2vRaXx/agF8=
+		</data>
+		<key>PlugIns/AttacheNotificationService.appex/__preview.dylib</key>
+		<data>
+		FPmOHcFzFMLGml9hJcKV+/yv+m0=
+		</data>
+		<key>PlugIns/AttacheNotificationService.appex/embedded.mobileprovision</key>
+		<data>
+		Vo5S4SF1ewhVIv1fwhNseQBcGmI=
+		</data>
 		<key>PlugIns/AttacheWidgets.appex/AttacheWidgets</key>
 		<data>
-		9khuUyuE+yXF2Wf0EIGmKZ1l7i8=
+		FC3wAFKmqd7s7WbsWSNQF34T+uo=
 		</data>
 		<key>PlugIns/AttacheWidgets.appex/AttacheWidgets.debug.dylib</key>
 		<data>
-		pEneoy+AXpx6mAySxnfYW+oEBHQ=
+		pZJ6trV4c8Mx9mFii+FIbXUK8/4=
 		</data>
 		<key>PlugIns/AttacheWidgets.appex/Info.plist</key>
 		<data>
-		croE0RZp3Mprk+LnxG9aow2LcHg=
+		J0AbUuchGNUErRyzasyzP5DWsGQ=
 		</data>
 		<key>PlugIns/AttacheWidgets.appex/_CodeSignature/CodeResources</key>
 		<data>
-		3Wv8EtSOwox3dcE9nDWav1GJWMM=
+		8oHuJDHFC6dPAPZoZj2vrERGSxU=
 		</data>
 		<key>PlugIns/AttacheWidgets.appex/__preview.dylib</key>
 		<data>
-		bGR9hUfBNTMtflNM6bk+/5RtGr4=
+		fbjzhXk1rym6yuQGp9j/AaYtDtw=
 		</data>
 		<key>PlugIns/AttacheWidgets.appex/embedded.mobileprovision</key>
 		<data>
-		s3/wN/m8Ll3ChMKBf5dO4+V4qNo=
+		FtGUEKKJOQo26z+KUJi0qa0hh+g=
 		</data>
 		<key>__preview.dylib</key>
 		<data>
-		DS1yHoWAFUEDQtFt4iInijcNlhE=
+		vB9PMhPapmQ/Kb7oiZF39y3X/iA=
 		</data>
 		<key>embedded.mobileprovision</key>
 		<data>
-		s3/wN/m8Ll3ChMKBf5dO4+V4qNo=
+		driEtXlvsIEMeqKW0W3vJbmeOQg=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -81,70 +105,112 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			QANd44TPgVgAeB6efCJb8nmwVxK86d+gl0rGZHkkStA=
+			u7TkgVtoe9FP8l481f47+WgVfwXtbcPYtlksewrdg/I=
 			</data>
 		</dict>
 		<key>Attache.debug.dylib</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			oVoZE2I7OUM5BwMYvBdKj5cyLO4ZRZfjJDEJadLAYhY=
+			YgTCwncCkidP6a7n3tfjxZCRF4Ey3aA7BUKg/gGs+Q0=
+			</data>
+		</dict>
+		<key>PlugIns/AttacheNotificationService.appex/AttacheNotificationService</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			CCy4eREyXV2zU8RwEinPctRVEfnt7cS+qcoRm8qnWQc=
+			</data>
+		</dict>
+		<key>PlugIns/AttacheNotificationService.appex/AttacheNotificationService.debug.dylib</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			puG7PfaexPqON8bUqHIl2CDIV/FRNbbkxsFEjSh8uVA=
+			</data>
+		</dict>
+		<key>PlugIns/AttacheNotificationService.appex/Info.plist</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			3LbmTVOmL1B7cjQWj3UFh6FMDUcGt5XyNYI60s6yu0w=
+			</data>
+		</dict>
+		<key>PlugIns/AttacheNotificationService.appex/_CodeSignature/CodeResources</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			rHGLBmbNmDy5hiEokR2ZdKytN7bSdNvVc8n1TfPIab0=
+			</data>
+		</dict>
+		<key>PlugIns/AttacheNotificationService.appex/__preview.dylib</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			QYzBYOdufe10CJOzVtYBGN7i6mCwCqA9HfWOwfLM9tE=
+			</data>
+		</dict>
+		<key>PlugIns/AttacheNotificationService.appex/embedded.mobileprovision</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			zKaEGl/5witN/S/0VWWPvUC0tRQGDKuDmj+fcQzAJO0=
 			</data>
 		</dict>
 		<key>PlugIns/AttacheWidgets.appex/AttacheWidgets</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			8uD+8T52p0Zxvw7MbI7pN2z7zujI8DrQnI3lIG52Vyo=
+			vLIXdydmTPdMaQrXEVtEyxi3K6zffSMWBhJE8IhdVnM=
 			</data>
 		</dict>
 		<key>PlugIns/AttacheWidgets.appex/AttacheWidgets.debug.dylib</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			kjcCCJV0q+BGNhM41YzootFNpzyZWLC2LL7Ze5NcsCs=
+			LcYXBR0lReyThy6aK25fT/Yauf4kDJylicbLi5Yqeas=
 			</data>
 		</dict>
 		<key>PlugIns/AttacheWidgets.appex/Info.plist</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			gT087acOEPub19HqehgZ4F1fmdpPvwizPkZw8cuDRuo=
+			5guXHJWCq54u41cqQO+8yRwnQqAvLyBSqo8MROOgPes=
 			</data>
 		</dict>
 		<key>PlugIns/AttacheWidgets.appex/_CodeSignature/CodeResources</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			uwPoY4Izieu+hPzT+W0AR4VJtmxANGSzlatl7lIxbXA=
+			RQxShwR2p9tdABGa4nMQtlQ3URNqhsshjpsY6uPRgc0=
 			</data>
 		</dict>
 		<key>PlugIns/AttacheWidgets.appex/__preview.dylib</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			maitx7VjBX667V8zCbIBj3dLITfm4486qM6RZJcSw9I=
+			a7N3dyn6n7Y9OFnZqAjZk2bYxA0zNyEpvWBGKkwmOSc=
 			</data>
 		</dict>
 		<key>PlugIns/AttacheWidgets.appex/embedded.mobileprovision</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			sd5ypq7+UttQlLn2lZsPzBG1CNS/RVeGSkyBX4Ehuw4=
+			NXF2EIGAga/0vCVj6lm82A9GopWxPdPYiYNdN2nwbAw=
 			</data>
 		</dict>
 		<key>__preview.dylib</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			oN8JEOyM//wmRxSr5jQJTnjR3OiXem5BaqkkTkcbCls=
+			jf5x+p+tkkfm+g7nDXr3nF0JPXXU4xtsdSWays8TSYg=
 			</data>
 		</dict>
 		<key>embedded.mobileprovision</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			sd5ypq7+UttQlLn2lZsPzBG1CNS/RVeGSkyBX4Ehuw4=
+			hca0zAX0CBp94WxT7xRIwwG+wDJ7tcugspEgGeuRNyI=
 			</data>
 		</dict>
 	</dict>

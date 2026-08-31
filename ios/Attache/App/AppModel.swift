@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftUI
+import UIKit
 import WidgetKit
 
 enum Route: Hashable {
@@ -123,17 +124,18 @@ final class AppModel {
         "\(elapsedSec / 60)m\(String(format: "%02d", elapsedSec % 60))s"
     }
 
+    /// Battery: this used to tick at 1Hz and mutate `elapsedSec`, invalidating
+    /// every observing view each second. The elapsed label now derives itself
+    /// in a TimelineView leaf (zero model mutation); this loop only feeds the
+    /// change-gated Live Activity / widget mirrors, at 5s, and never while the
+    /// app is backgrounded (iOS suspends us anyway — don't burn the wakeups).
     func startTicker() {
         ticker?.cancel()
         ticker = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(for: .seconds(5))
                 guard let self else { return }
-                if let start = self.turnStartedAt {
-                    self.elapsedSec = Int(-start.timeIntervalSinceNow)
-                } else if self.turnActive {
-                    self.elapsedSec += 1
-                }
+                guard UIApplication.shared.applicationState != .background else { continue }
                 LiveActivityManager.shared.sync(app: self)
                 self.publishWidgetSnapshot()
             }
