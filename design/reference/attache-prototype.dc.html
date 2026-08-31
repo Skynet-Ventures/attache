@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<style>
+body{margin:0;background:#131314;font-family:-apple-system,system-ui,sans-serif}
+a{color:#e8e8e6}a:hover{color:#FF6A2B}
+@keyframes omblink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes omtype{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-3px);opacity:1}}
+</style>
+</helmet>
+<div style="min-height:100vh;box-sizing:border-box;display:flex;gap:40px;align-items:flex-start;justify-content:center;padding:42px 40px">
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;position:relative;background:#060606;overflow:hidden">
+<sc-if value="{{ offline }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:54px;left:0;right:0;z-index:40;background:rgba(60,14,10,.88);backdrop-filter:blur(8px);border-top:1px solid rgba(255,69,58,.35);border-bottom:1px solid rgba(255,69,58,.35);padding:6px 16px;display:flex;align-items:center;gap:8px">
+<span style="width:6px;height:6px;border-radius:50%;background:#FF453A;animation:omblink 1.2s infinite"></span>
+<span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF9C93;flex:1">devbox unreachable — retrying in 3s</span>
+<span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(255,156,147,.7)">actions queue + sync</span>
+</div>
+</sc-if>
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column">
+  <div style="padding:64px 18px 10px;display:flex;align-items:center;gap:10px">
+    <div style="width:34px;height:34px;border-radius:9px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font:700 15px ui-monospace,Menlo,monospace;color:#FF6A2B">å</div>
+    <div style="flex:1">
+      <div style="font:700 17px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.02em">Attaché</div>
+      <div style="font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)"><span style="color:{{ machineDot }}">●</span> {{ machineLabel }}</div>
+    </div>
+    <div style="width:34px;height:34px;border-radius:50%;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:400 22px -apple-system,system-ui,sans-serif;color:#000;padding-bottom:2px;cursor:pointer" style-active="transform:scale(.92)">+</div>
+  </div>
+  <div style="display:flex;gap:7px;padding:4px 18px 12px">
+    <div onClick="{{ goAgents }}" style="height:26px;border-radius:7px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:6px;padding:0 9px;cursor:pointer" style-hover="border-color:rgba(255,106,43,.5)"><span style="width:6px;height:6px;border-radius:50%;background:#FF6A2B;animation:omblink 1.6s infinite"></span><span style="font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.75)">agents 2</span></div>
+    <div onClick="{{ goApprovals }}" style="height:26px;border-radius:7px;background:#141416;border:1px solid rgba(255,214,10,.35);display:flex;align-items:center;gap:6px;padding:0 9px;cursor:pointer" style-hover="border-color:#FFD60A"><span style="font:500 10.5px ui-monospace,Menlo,monospace;color:#FFD60A">approvals {{ pendingCount }}</span></div>
+    <div onClick="{{ goMachines }}" style="height:26px;border-radius:7px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 9px;cursor:pointer" style-hover="border-color:rgba(255,255,255,.3)"><span style="font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6)">machines</span></div>
+    <div onClick="{{ goSettings }}" style="height:26px;border-radius:7px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 9px;cursor:pointer" style-hover="border-color:rgba(255,255,255,.3)"><span style="font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6)">roles</span></div>
+  </div>
+  <div onClick="{{ goSessions }}" style="margin:0 18px 14px;height:36px;border-radius:10px;background:#111113;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;padding:0 12px;gap:8px;cursor:pointer" style-hover="border-color:rgba(255,106,43,.4)">
+    <svg width="13" height="13" viewBox="0 0 13 13"><circle cx="5.5" cy="5.5" r="4.5" fill="none" stroke="rgba(244,244,242,.35)" stroke-width="1.5"></circle><path d="M9 9l3 3" stroke="rgba(244,244,242,.35)" stroke-width="1.5" stroke-linecap="round"></path></svg>
+    <span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.35)">Search sessions, prompts, files…</span>
+  </div>
+  <div style="padding:0 18px 8px;font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35)">PINNED</div>
+  <div onClick="{{ goStream }}" style="margin:0 18px 10px;background:#101012;border:1px solid rgba(255,106,43,.35);border-radius:14px;padding:14px 14px 12px;cursor:pointer" style-hover="border-color:#FF6A2B;background:#131315" style-active="transform:scale(.985)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="width:7px;height:7px;border-radius:50%;background:#FF6A2B;box-shadow:0 0 8px rgba(255,106,43,.8);animation:omblink 1.6s infinite"></span>
+      <span style="font:600 14.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.01em;flex:1">Fix decoder memory leak</span>
+      <span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF6A2B">RUNNING</span>
+    </div>
+    <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.55);margin-bottom:10px">{{ homeStatusLine }}</div>
+    <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.08);margin-bottom:8px"><div style="width:{{ ctxPct }}%;height:100%;border-radius:2px;background:#FF6A2B;transition:width .6s"></div></div>
+    <div style="display:flex;gap:10px;font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45);white-space:nowrap">
+      <span>pixeld</span><span>ctx {{ ctxPct }}%</span><span>${{ cost }}</span><span style="color:#FF6A2B">2 agents live</span><span style="margin-left:auto">deepseek-v4</span>
+    </div>
+  </div>
+  <div onClick="{{ goPlan }}" style="margin:0 18px 16px;background:#101012;border:1px solid {{ planCardBorder }};border-radius:14px;padding:14px 14px 12px;cursor:pointer" style-hover="border-color:#FFD60A;background:#131315" style-active="transform:scale(.985)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="width:7px;height:7px;border-radius:50%;background:{{ planDot }}"></span>
+      <span style="font:600 14.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.01em;flex:1">Ship usage-based invoicing</span>
+      <span style="font:500 10px ui-monospace,Menlo,monospace;color:{{ planBadgeColor }}">{{ planBadge }}</span>
+    </div>
+    <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.55);margin-bottom:8px">{{ planCardLine }}</div>
+    <div style="display:flex;gap:10px;font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45);white-space:nowrap">
+      <span>billing-api</span><span>ctx 31%</span><span>$1.12</span><span style="margin-left:auto">grok-4.5 · plan</span>
+    </div>
+  </div>
+  <div style="padding:0 18px 8px;font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35)">PIXELD — DEVBOX</div>
+  <div style="margin:0 18px;border-radius:12px;background:#0C0C0E;border:1px solid rgba(255,255,255,.06);overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer" style-hover="background:#111113">
+      <span style="width:6px;height:6px;border-radius:50%;background:#30D158"></span>
+      <span style="font:400 13.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Batch export presets</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">merged · 2h</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer" style-hover="background:#111113">
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(244,244,242,.25)"></span>
+      <span style="font:400 13.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Investigate AVIF encode speed</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">idle · 1d</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer" style-hover="background:#111113">
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(244,244,242,.25)"></span>
+      <span style="font:400 13.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">⑂ leak fix — alt approach (branch)</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">idle · 3h</span>
+    </div>
+  </div>
+  <div style="padding:14px 18px 8px;font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35)">OMP-WEB — DEVBOX</div>
+  <div style="margin:0 18px;border-radius:12px;background:#0C0C0E;border:1px solid rgba(255,255,255,.06)">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer" style-hover="background:#111113">
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(244,244,242,.25)"></span>
+      <span style="font:400 13.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Docs search relevance pass</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">idle · 2d</span>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isStream }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column">
+  <div style="padding:60px 16px 0;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div onClick="{{ goHome }}" style="padding:4px 6px;margin-left:-6px;cursor:pointer"><svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+      <div style="flex:1">
+        <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.01em">Fix decoder memory leak</div>
+        <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">⑂ fix/resize-pool · turn {{ turnNo }} · {{ elapsedLabel }}</div>
+      </div>
+      <div onClick="{{ toggleBranchSheet }}" style="height:26px;width:26px;border-radius:7px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font:500 12px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.7);cursor:pointer;flex-shrink:0" style-hover="border-color:rgba(255,106,43,.5)">⑂</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding-bottom:9px">
+      <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.08)"><div style="width:{{ ctxPct }}%;height:100%;border-radius:2px;background:#FF6A2B;transition:width .6s"></div></div>
+      <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">{{ ctxLabel }} · ${{ cost }} · compact@85%</span>
+    </div>
+  </div>
+  <div ref="{{ streamRef }}" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+    <sc-if value="{{ goalOn }}" hint-placeholder-val="{{ false }}">
+    <div style="flex-shrink:0;position:sticky;top:0;z-index:5;background:rgba(24,13,7,.94);backdrop-filter:blur(8px);border:1px solid rgba(255,106,43,.4);border-radius:10px;padding:9px 11px">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
+        <span style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#FF6A2B">◎ GOAL</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45);flex:1">turn {{ goalTurns }} / budget 40</span>
+        <span onClick="{{ goalPause }}" style="font:500 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6);cursor:pointer" style-hover="color:#F4F4F2">pause</span>
+        <span onClick="{{ goalDrop }}" style="font:500 9.5px ui-monospace,Menlo,monospace;color:#FF453A;cursor:pointer" style-hover="text-decoration:underline">drop</span>
+      </div>
+      <div style="font:400 11.5px/1.4 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.85)">{{ goalObjective }}</div>
+    </div>
+    </sc-if>
+    <div style="flex-shrink:0;align-self:flex-end;max-width:86%;background:#1E1E22;border-radius:14px 14px 4px 14px;padding:10px 13px;font:400 13px/1.45 -apple-system,system-ui,sans-serif;color:#F4F4F2">Memory climbs ~40MB/min under thumbnail load until OOM. Find the leak in the resize pipeline and prove the fix with pprof.</div>
+    <div style="flex-shrink:0;font:400 13px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.8)">Heap profile points at retained buffers in the resize pool. <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#F4F4F2">sync.Pool</span> keeps every oversized buffer alive — unbounded-retention leak. Patching <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#F4F4F2">Put()</span>:</div>
+    <div onClick="{{ toggleSearchCard }}" style="flex-shrink:0;background:#0E0E10;border:1px solid rgba(255,255,255,.08);border-radius:10px;cursor:pointer" style-hover="border-color:rgba(255,255,255,.2)">
+      <div style="padding:8px 11px;display:flex;align-items:center;gap:8px">
+        <span style="font:500 10px ui-monospace,Menlo,monospace;color:#30D158">✓</span>
+        <span style="font:500 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.7);flex:1">search <span style="color:rgba(244,244,242,.4)">bytes.Buffer in internal/</span></span>
+        <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">14 hits</span>
+        <span style="font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">{{ searchChevron }}</span>
+      </div>
+      <sc-if value="{{ searchOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="border-top:1px solid rgba(255,255,255,.06);padding:7px 0;font:400 10px/1.7 ui-monospace,Menlo,monospace">
+        <div style="padding:0 11px;color:rgba(244,244,242,.55)">internal/resize/pool.go:14 <span style="color:#FF6A2B">bufPool</span> sync.Pool</div>
+        <div style="padding:0 11px;color:rgba(244,244,242,.55)">internal/resize/thumb.go:88 buf := pool.Get()</div>
+        <div style="padding:0 11px;color:rgba(244,244,242,.55)">internal/encode/writer.go:31 bytes.Buffer scratch</div>
+        <div style="padding:0 11px;color:rgba(244,244,242,.3)">+ 11 more · open in files</div>
+      </div>
+      </sc-if>
+    </div>
+    <div onClick="{{ toggleEditCard }}" style="flex-shrink:0;background:#0E0E10;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;cursor:pointer" style-hover="border-color:rgba(255,255,255,.2)">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid rgba(255,255,255,.06)">
+        <span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF6A2B">±</span>
+        <span style="font:500 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.85);flex:1">edit <span style="color:rgba(244,244,242,.45)">internal/resize/pool.go</span></span>
+        <span style="font:500 10px ui-monospace,Menlo,monospace;color:#30D158">+11</span><span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF453A">−3</span>
+        <span style="font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.3);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:1px 4px">#a3f2</span>
+      </div>
+      <div style="font:400 10.5px/1.6 ui-monospace,Menlo,monospace;padding:8px 0">
+        <sc-if value="{{ editOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:0 11px;color:rgba(244,244,242,.35)">@@ -12,9 +12,16 @@ package resize</div>
+        <div style="padding:0 11px;background:rgba(48,209,88,.1);color:#7CE59E">+const <span>maxRetained</span> = 1 &lt;&lt; 20 // 1 MiB</div>
+        <div style="padding:0 11px;color:rgba(244,244,242,.5)"> var <span>bufPool</span> = sync.Pool{</div>
+        <div style="padding:0 11px;color:rgba(244,244,242,.5)">   New: func() any { return new(bytes.Buffer) },</div>
+        <div style="padding:0 11px;color:rgba(244,244,242,.5)"> }</div>
+        </sc-if>
+        <div style="padding:0 11px;color:rgba(244,244,242,.5)"> func Put(b *bytes.Buffer) {</div>
+        <div style="padding:0 11px;background:rgba(48,209,88,.1);color:#7CE59E">+  if b.Cap() &gt; maxRetained {</div>
+        <div style="padding:0 11px;background:rgba(48,209,88,.1);color:#7CE59E">+    return // drop oversized bufs</div>
+        <div style="padding:0 11px;background:rgba(48,209,88,.1);color:#7CE59E">+  }</div>
+        <div style="padding:0 11px;color:rgba(244,244,242,.5)">   b.Reset()</div>
+        <sc-if value="{{ editOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:0 11px;color:rgba(244,244,242,.5)">   bufPool.Put(b)</div>
+        <div style="padding:0 11px;color:rgba(244,244,242,.5)"> }</div>
+        </sc-if>
+      </div>
+      <div style="display:flex;gap:10px;padding:7px 11px;border-top:1px solid rgba(255,255,255,.06);font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">
+        <span style="color:#30D158">lsp ✓ 0 diagnostics</span><span>gofmt ok</span><span style="margin-left:auto">{{ editHint }}</span><span onClick="{{ openDiff }}" style="color:#FF6A2B;cursor:pointer" style-hover="text-decoration:underline">review ▸</span>
+      </div>
+    </div>
+    <sc-if value="{{ advisorVisible }}" hint-placeholder-val="{{ false }}">
+    <div style="flex-shrink:0;background:rgba(255,106,43,.07);border:1px solid rgba(255,106,43,.3);border-radius:10px;padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+        <span style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#FF6A2B">◆ ADVISOR</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">grok-4.5 · after turn 13</span>
+      </div>
+      <div style="font:400 12.5px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.85)">Cap fix is right, but <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">Get()</span> callers skip <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">Put()</span> on the error path — the leak just moves. Suggest a defer in <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">renderThumb</span>.</div>
+      <div style="display:flex;gap:14px;margin-top:7px;font:500 11px -apple-system,system-ui,sans-serif">
+        <span onClick="{{ advisorAddress }}" style="color:#FF6A2B;cursor:pointer" style-hover="text-decoration:underline">Ask agent to address</span><span onClick="{{ advisorDismiss }}" style="color:rgba(244,244,242,.45);cursor:pointer" style-hover="color:rgba(244,244,242,.8)">Dismiss</span>
+      </div>
+    </div>
+    </sc-if>
+    <sc-if value="{{ advisorAddressed }}" hint-placeholder-val="{{ false }}">
+    <div style="flex-shrink:0;display:flex;align-items:center;gap:7px;font:400 10px ui-monospace,Menlo,monospace;color:rgba(255,106,43,.7)"><span>◆</span><span>advisor note forwarded to agent as steer</span></div>
+    </sc-if>
+    <sc-if value="{{ inlinePending }}" hint-placeholder-val="{{ false }}">
+    <div style="flex-shrink:0;background:#0E0E10;border:1px solid rgba(255,214,10,.35);border-radius:10px;padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+        <span style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#FFD60A">⚠ APPROVAL</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">destructive · bash</span>
+      </div>
+      <div style="background:#000;border-radius:7px;padding:7px 10px;font:400 11px ui-monospace,Menlo,monospace;color:#F4F4F2;margin-bottom:5px">rm -rf tmp/profiles.old</div>
+      <div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.5);margin-bottom:9px">reason: clear stale pprof baselines before re-comparing</div>
+      <div style="display:flex;gap:8px">
+        <div onClick="{{ inlineDeny }}" style="flex:1;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:500 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.7);cursor:pointer" style-hover="border-color:#FF453A;color:#FF453A">Deny</div>
+        <div onClick="{{ inlineAllow }}" style="flex:1.4;height:32px;border-radius:8px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 12px -apple-system,system-ui,sans-serif;color:#000;cursor:pointer" style-hover="background:#FF8551" style-active="transform:scale(.96)">Allow once</div>
+        <div onClick="{{ inlineAlways }}" style="flex:1;height:32px;border-radius:8px;border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:500 12px -apple-system,system-ui,sans-serif;color:#FF6A2B;cursor:pointer" style-hover="background:rgba(255,106,43,.12)">Always</div>
+      </div>
+    </div>
+    </sc-if>
+    <sc-for list="{{ messages }}" as="m" hint-placeholder-count="0">
+      <div style="flex-shrink:0">
+        <sc-if value="{{ m.isUser }}" hint-placeholder-val="{{ false }}"><div style="margin-left:auto;max-width:86%;width:fit-content;background:#1E1E22;border-radius:14px 14px 4px 14px;padding:10px 13px;font:400 13px/1.45 -apple-system,system-ui,sans-serif;color:#F4F4F2">{{ m.text }}</div></sc-if>
+        <sc-if value="{{ m.isSteer }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:flex-start;gap:7px;font:400 11px/1.5 ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5)"><span style="color:#FF6A2B">»</span><span>{{ m.text }}</span></div></sc-if>
+        <sc-if value="{{ m.isAgent }}" hint-placeholder-val="{{ false }}"><div style="font:400 13px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.8)">{{ m.text }}</div></sc-if>
+        <sc-if value="{{ m.isTool }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#0E0E10;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 11px;display:flex;align-items:center;gap:8px">
+          <span style="font:500 10px ui-monospace,Menlo,monospace;color:{{ m.iconColor }}">{{ m.icon }}</span>
+          <span style="font:500 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.7);flex:1">{{ m.text }}</span>
+          <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">{{ m.meta }}</span>
+        </div>
+        </sc-if>
+      </div>
+    </sc-for>
+    <sc-if value="{{ typing }}" hint-placeholder-val="{{ false }}">
+    <div style="flex-shrink:0;display:flex;gap:4px;padding:4px 2px">
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(244,244,242,.6);animation:omtype 1.2s infinite"></span>
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(244,244,242,.6);animation:omtype 1.2s .15s infinite"></span>
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(244,244,242,.6);animation:omtype 1.2s .3s infinite"></span>
+    </div>
+    </sc-if>
+  </div>
+  <div style="flex-shrink:0;padding:10px 16px 30px;border-top:1px solid rgba(255,255,255,.08);background:#0A0A0B;position:relative">
+    <sc-if value="{{ slashOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:100%;left:10px;right:10px;margin-bottom:8px;background:#141416;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden;box-shadow:0 -10px 40px rgba(0,0,0,.6)">
+      <sc-for list="{{ slashItems }}" as="s" hint-placeholder-count="0">
+        <div onClick="{{ s.pick }}" style="display:flex;align-items:baseline;gap:10px;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer" style-hover="background:rgba(255,106,43,.1)">
+          <span style="font:600 11.5px ui-monospace,Menlo,monospace;color:#FF6A2B;width:74px">{{ s.cmd }}</span>
+          <span style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.55)">{{ s.desc }}</span>
+        </div>
+      </sc-for>
+    </div>
+    </sc-if>
+    <sc-if value="{{ roleSheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:100%;left:10px;right:10px;margin-bottom:8px;background:#141416;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden;box-shadow:0 -10px 40px rgba(0,0,0,.6)">
+      <div style="padding:9px 13px 5px;font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:rgba(244,244,242,.4)">SEND NEXT MESSAGE AS ROLE</div>
+      <sc-for list="{{ roleItems }}" as="r" hint-placeholder-count="0">
+        <div onClick="{{ r.pick }}" style="display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer" style-hover="background:rgba(255,106,43,.1)">
+          <span style="font:600 11px ui-monospace,Menlo,monospace;color:{{ r.color }};width:66px">{{ r.name }}</span>
+          <span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6);flex:1">{{ r.model }}</span>
+          <span style="font:500 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5);border:1px solid rgba(255,255,255,.16);border-radius:4px;padding:1px 5px">{{ r.think }}</span>
+        </div>
+      </sc-for>
+    </div>
+    </sc-if>
+    <sc-if value="{{ branchSheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:100%;left:10px;right:10px;margin-bottom:8px;background:#141416;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden;box-shadow:0 -10px 40px rgba(0,0,0,.6)">
+      <div style="padding:9px 13px 5px;font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:rgba(244,244,242,.4)">⑂ BRANCH THIS SESSION — HISTORY STAYS INTACT</div>
+      <sc-for list="{{ branchItems }}" as="b" hint-placeholder-count="0">
+        <div onClick="{{ b.pick }}" style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer" style-hover="background:rgba(255,106,43,.1)">
+          <span style="font:500 11.5px ui-monospace,Menlo,monospace;color:#F4F4F2">{{ b.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+    </sc-if>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <span onClick="{{ cycleMode }}" style="height:24px;border-radius:6px;background:rgba(255,106,43,.14);border:1px solid rgba(255,106,43,.4);display:flex;align-items:center;padding:0 8px;font:600 10px ui-monospace,Menlo,monospace;color:#FF6A2B;cursor:pointer" style-active="transform:scale(.94)">{{ modeLabel }} ▾</span>
+      <span onClick="{{ toggleRoleSheet }}" style="height:24px;border-radius:6px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 8px;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6);cursor:pointer" style-hover="border-color:rgba(255,106,43,.5)">@{{ roleLabel }} ▾</span>
+      <span onClick="{{ toggleSlash }}" style="height:24px;width:24px;border-radius:6px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6);cursor:pointer" style-hover="border-color:rgba(255,106,43,.5)">/</span>
+      <sc-if value="{{ turnActive }}" hint-placeholder-val="{{ false }}"><span onClick="{{ stopTurn }}" style="margin-left:auto;font:400 9.5px ui-monospace,Menlo,monospace;color:#FF6A2B;cursor:pointer" style-hover="text-decoration:underline">■ stop turn</span></sc-if>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:32px;height:32px;border-radius:9px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font:300 19px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);padding-bottom:2px;cursor:pointer" style-hover="border-color:rgba(255,255,255,.3)">+</div>
+      <div style="flex:1;height:38px;border-radius:11px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 13px;gap:8px">
+        <input value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="Message omp…" style="flex:1;background:transparent;border:none;outline:none;font:400 13px -apple-system,system-ui,sans-serif;color:#F4F4F2;min-width:0"></input>
+        <svg width="12" height="17" viewBox="0 0 12 17"><rect x="3.5" y="1" width="5" height="9" rx="2.5" fill="none" stroke="rgba(244,244,242,.5)" stroke-width="1.4"></rect><path d="M1 8.5a5 5 0 0 0 10 0M6 13.5V16" stroke="rgba(244,244,242,.5)" stroke-width="1.4" fill="none" stroke-linecap="round"></path></svg>
+      </div>
+      <div onClick="{{ send }}" style="width:32px;height:32px;border-radius:50%;background:#FF6A2B;display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:#FF8551" style-active="transform:scale(.92)"><svg width="12" height="13" viewBox="0 0 12 13"><path d="M6 12V2M2 6l4-4 4 4" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isAgents }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column">
+  <div style="padding:60px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+    <div onClick="{{ goStream }}" style="padding:4px 6px;margin-left:-6px;cursor:pointer"><svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    <div style="flex:1">
+      <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2">Agents</div>
+      <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">fix decoder memory leak · 2 live · 1 done · 1 queued</div>
+    </div>
+    <span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF6A2B;cursor:pointer" style-hover="text-decoration:underline">+ dispatch</span>
+  </div>
+  <div style="padding:12px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px;flex-shrink:0">
+    <sc-for list="{{ agentTiles }}" as="a" hint-placeholder-count="4">
+      <div onClick="{{ a.focus }}" style="background:#101012;border:1px solid {{ a.border }};border-radius:12px;padding:11px;cursor:pointer;opacity:{{ a.opacity }}" style-hover="border-color:#FF6A2B" style-active="transform:scale(.97)">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font:600 10px ui-monospace,Menlo,monospace;color:{{ a.dotColor }}">{{ a.dot }}</span><span style="font:600 12px ui-monospace,Menlo,monospace;color:#F4F4F2;flex:1">{{ a.name }}</span></div>
+        <div style="font:400 11px/1.45 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);height:32px;overflow:hidden">{{ a.line }}</div>
+        <div style="margin-top:7px;font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">{{ a.meta }}</div>
+      </div>
+    </sc-for>
+  </div>
+  <div style="margin-top:auto;background:#0C0C0E;border-top:1px solid rgba(255,255,255,.1);border-radius:20px 20px 0 0;padding:10px 16px 26px;box-shadow:0 -12px 30px rgba(0,0,0,.6);flex-shrink:0">
+    <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.15);margin:0 auto 10px"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="width:6px;height:6px;border-radius:50%;background:#FF6A2B;animation:omblink 1.6s infinite"></span>
+      <span style="font:600 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2;flex:1">{{ focusedName }}</span>
+      <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">{{ focusedHandle }} · task model</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px;max-height:190px;overflow-y:auto">
+      <sc-for list="{{ focusedLines }}" as="l" hint-placeholder-count="2">
+        <sc-if value="{{ l.isTool }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#111113;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:7px 10px;display:flex;gap:8px;align-items:center;flex-shrink:0">
+          <span style="font:500 9.5px ui-monospace,Menlo,monospace;color:#30D158">✓</span>
+          <span style="font:400 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.65);flex:1">{{ l.text }}</span>
+          <span style="font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.3)">{{ l.meta }}</span>
+        </div>
+        </sc-if>
+        <sc-if value="{{ l.isText }}" hint-placeholder-val="{{ false }}"><div style="font:400 11.5px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.75);flex-shrink:0">{{ l.text }}</div></sc-if>
+        <sc-if value="{{ l.isSteer }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:7px;font:400 10.5px/1.5 ui-monospace,Menlo,monospace;color:#FF6A2B;flex-shrink:0"><span>»</span><span style="color:rgba(255,106,43,.85)">{{ l.text }}</span></div></sc-if>
+      </sc-for>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;height:34px;border-radius:9px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 12px">
+        <input value="{{ steerDraft }}" onChange="{{ onSteerDraft }}" onKeyDown="{{ onSteerKey }}" placeholder="Steer {{ focusedName }}…" style="flex:1;background:transparent;border:none;outline:none;font:400 12px -apple-system,system-ui,sans-serif;color:#F4F4F2;min-width:0"></input>
+      </div>
+      <div onClick="{{ sendSteer }}" style="width:34px;height:34px;border-radius:9px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:#FF8551" style-active="transform:scale(.92)"><svg width="11" height="12" viewBox="0 0 12 13"><path d="M6 12V2M2 6l4-4 4 4" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isApprovals }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column">
+  <div style="padding:60px 16px 10px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div onClick="{{ goHome }}" style="padding:4px 6px;margin-left:-6px;cursor:pointer"><svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+      <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Approvals <span style="color:#FFD60A">· {{ pendingCount }}</span></div>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">policy: ask destructive</span>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:11px">
+    <sc-for list="{{ queueItems }}" as="q" hint-placeholder-count="3">
+      <div style="flex-shrink:0;background:#101012;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 13px;opacity:{{ q.opacity }};transition:opacity .3s">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+          <span style="font:600 9.5px ui-monospace,Menlo,monospace;color:{{ q.riskColor }}">{{ q.riskLabel }}</span>
+          <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);flex:1">{{ q.src }}</span>
+        </div>
+        <sc-if value="{{ q.hasCmd }}" hint-placeholder-val="{{ true }}"><div style="background:#000;border-radius:7px;padding:7px 10px;font:400 11px ui-monospace,Menlo,monospace;color:#F4F4F2;margin-bottom:5px">{{ q.cmd }}</div></sc-if>
+        <sc-if value="{{ q.hasDiff }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#000;border-radius:7px;padding:6px 10px;font:400 10px/1.6 ui-monospace,Menlo,monospace;margin-bottom:5px">
+          <div style="color:#FF7A6B">− vision: grok-4.5:medium</div>
+          <div style="color:#7CE59E">+ vision: grok-4.5:high</div>
+        </div>
+        </sc-if>
+        <div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.5);margin-bottom:9px">{{ q.reason }}</div>
+        <sc-if value="{{ q.pending }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:8px">
+          <div onClick="{{ q.deny }}" style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:500 11.5px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.7);cursor:pointer" style-hover="border-color:#FF453A;color:#FF453A">Deny</div>
+          <div onClick="{{ q.allow }}" style="flex:1.4;height:30px;border-radius:8px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#000;cursor:pointer" style-hover="background:#FF8551" style-active="transform:scale(.96)">Allow once</div>
+          <div onClick="{{ q.always }}" style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:500 11.5px -apple-system,system-ui,sans-serif;color:#FF6A2B;cursor:pointer" style-hover="background:rgba(255,106,43,.12)">Always</div>
+        </div>
+        </sc-if>
+        <sc-if value="{{ q.resolved }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:7px;font:500 11px ui-monospace,Menlo,monospace;color:{{ q.verdictColor }}"><span>{{ q.verdictIcon }}</span><span>{{ q.verdict }}</span><span style="color:rgba(244,244,242,.35);font-weight:400">· synced to TUI</span></div>
+        </sc-if>
+      </div>
+    </sc-for>
+    <sc-if value="{{ queueClear }}" hint-placeholder-val="{{ false }}">
+    <div style="flex-shrink:0;text-align:center;padding:26px 0 6px">
+      <div style="font:600 22px ui-monospace,Menlo,monospace;color:#30D158;margin-bottom:6px">✓</div>
+      <div style="font:500 13px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.75)">Queue clear</div>
+      <div style="font:400 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);margin-top:3px">agents resume automatically</div>
+    </div>
+    </sc-if>
+    <div style="flex-shrink:0;text-align:center;font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">answers sync to the TUI instantly · <span style="color:#FF6A2B;cursor:pointer">edit policy</span></div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column">
+  <div style="padding:60px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+    <div onClick="{{ goHome }}" style="padding:4px 6px;margin-left:-6px;cursor:pointer"><svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Models & settings</div>
+    <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">global profile</span>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:12px 16px 30px">
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35);margin-bottom:7px">MODEL ROLES — TAP LEVEL TO CYCLE</div>
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;margin-bottom:12px">
+      <sc-for list="{{ roleRows }}" as="r" hint-placeholder-count="8">
+        <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05)">
+          <span style="width:74px;font:500 10px ui-monospace,Menlo,monospace;color:{{ r.color }}">{{ r.name }}</span>
+          <span style="flex:1;font:400 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2">{{ r.model }}</span>
+          <span onClick="{{ r.cycle }}" style="font:500 9px ui-monospace,Menlo,monospace;color:{{ r.thinkColor }};border:1px solid {{ r.thinkBorder }};border-radius:5px;padding:2px 6px;cursor:pointer;min-width:34px;text-align:center" style-hover="border-color:#FF6A2B;color:#FF6A2B" style-active="transform:scale(.9)">{{ r.think }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35);margin-bottom:7px">FALLBACK CHAIN — DEFAULT</div>
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:11px 13px;margin-bottom:12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+      <span style="font:500 10.5px ui-monospace,Menlo,monospace;color:#F4F4F2;background:#17171A;border:1px solid rgba(255,106,43,.45);border-radius:6px;padding:4px 8px">deepseek-v4-flash</span>
+      <span style="color:rgba(244,244,242,.35);font:400 11px ui-monospace,Menlo,monospace">→</span>
+      <span style="font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.7);background:#17171A;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:4px 8px">nemotron-3-ultra</span>
+      <span style="color:rgba(244,244,242,.35);font:400 11px ui-monospace,Menlo,monospace">→</span>
+      <span style="font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.7);background:#17171A;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:4px 8px">glm-5.2</span>
+      <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35);width:100%">on 429 / quota — session never dies</span>
+    </div>
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35);margin-bottom:7px">BEHAVIOR</div>
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden">
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05)">
+        <span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Approval mode</span>
+        <div style="display:flex;background:#000;border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:2px">
+          <sc-for list="{{ approvalModes }}" as="am" hint-placeholder-count="3">
+            <span onClick="{{ am.pick }}" style="font:{{ am.weight }} 10px ui-monospace,Menlo,monospace;color:{{ am.color }};background:{{ am.bg }};border-radius:5px;padding:3px 8px;cursor:pointer">{{ am.label }}</span>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05)">
+        <span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Hindsight memory</span>
+        <div onClick="{{ toggleHindsight }}" style="width:40px;height:24px;border-radius:12px;background:{{ hindsightBg }};position:relative;cursor:pointer;transition:background .2s">
+          <div style="position:absolute;top:2px;left:{{ hindsightKnob }}px;width:20px;height:20px;border-radius:50%;background:#000;border:1px solid rgba(255,255,255,.2);transition:left .2s"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Snapcompact</span><span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5)">auto @ 85%</span></div>
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer" style-hover="background:#111113"><span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Rules</span><span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5)">12 · from 4 formats ▸</span></div>
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer" style-hover="background:#111113"><span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">MCP servers</span><span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5)">3 connected ▸</span></div>
+      <div style="display:flex;align-items:center;padding:10px 13px;cursor:pointer" style-hover="background:#111113"><span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Skills & extensions</span><span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5)">7 · 5 ▸</span></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isMachines }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column">
+  <div style="padding:60px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+    <div onClick="{{ goHome }}" style="padding:4px 6px;margin-left:-6px;cursor:pointer"><svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Machines</div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:14px 16px 30px">
+    <div style="background:#101012;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;margin-bottom:12px">
+      <div style="font:600 14px -apple-system,system-ui,sans-serif;color:#F4F4F2;margin-bottom:4px">Pair a machine</div>
+      <div style="font:400 11.5px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.5);margin-bottom:12px">On the machine running omp:</div>
+      <div style="background:#000;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:10px 12px;display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="font:400 12px ui-monospace,Menlo,monospace;color:#F4F4F2;flex:1"><span style="color:rgba(244,244,242,.4)">$</span> omp serve --pair</span>
+        <span onClick="{{ copyPair }}" style="font:500 9.5px ui-monospace,Menlo,monospace;color:#FF6A2B;border:1px solid rgba(255,106,43,.45);border-radius:5px;padding:2px 7px;cursor:pointer" style-active="transform:scale(.92)">{{ copyLabel }}</span>
+      </div>
+      <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);margin-bottom:8px;letter-spacing:.08em">THEN ENTER THE CODE IT PRINTS — <span style="color:#FF6A2B;cursor:pointer" onClick="{{ pairType }}">tap to simulate typing</span></div>
+      <div style="display:flex;gap:7px;margin-bottom:12px">
+        <sc-for list="{{ pairCells }}" as="c" hint-placeholder-count="4">
+          <div style="flex:1;height:46px;border-radius:9px;background:#000;border:1px solid {{ c.border }};display:flex;align-items:center;justify-content:center;font:600 18px ui-monospace,Menlo,monospace;color:{{ c.color }}">{{ c.txt }}</div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ pairDone }}" hint-placeholder-val="{{ false }}">
+      <div style="height:38px;border-radius:10px;background:rgba(48,209,88,.12);border:1px solid rgba(48,209,88,.4);display:flex;align-items:center;justify-content:center;gap:8px;font:500 12.5px -apple-system,system-ui,sans-serif;color:#30D158">✓ build-02 paired · key exchanged</div>
+      <sc-if value="{{ obPairBar }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ obContinue }}" style="margin-top:10px;height:40px;border-radius:10px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 13px -apple-system,system-ui,sans-serif;color:#000;cursor:pointer" style-active="transform:scale(.97)">Continue — notifications</div>
+      </sc-if>
+      </sc-if>
+      <sc-if value="{{ pairNotDone }}" hint-placeholder-val="{{ true }}">
+      <div style="height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer" style-hover="border-color:rgba(255,255,255,.3)">
+        <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="4.5" height="4.5" fill="none" stroke="rgba(244,244,242,.7)" stroke-width="1.3"></rect><rect x="8.5" y="1" width="4.5" height="4.5" fill="none" stroke="rgba(244,244,242,.7)" stroke-width="1.3"></rect><rect x="1" y="8.5" width="4.5" height="4.5" fill="none" stroke="rgba(244,244,242,.7)" stroke-width="1.3"></rect><rect x="8.5" y="8.5" width="2" height="2" fill="rgba(244,244,242,.7)"></rect><rect x="11" y="11" width="2" height="2" fill="rgba(244,244,242,.7)"></rect></svg>
+        <span style="font:500 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Scan QR from terminal</span>
+      </div>
+      </sc-if>
+    </div>
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35);margin-bottom:7px">PAIRED</div>
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;margin-bottom:10px">
+      <div style="padding:12px 13px;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#30D158"></span>
+          <span style="font:600 13px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">devbox</span>
+          <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">2 sessions live</span>
+        </div>
+        <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);padding-left:15px">tailscale · 12ms · omp 0.9.4 · bun 1.3.14</div>
+      </div>
+      <div style="padding:12px 13px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="width:7px;height:7px;border-radius:50%;background:{{ wakeDot }}"></span>
+          <span style="font:600 13px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);flex:1">build-01</span>
+          <span onClick="{{ wake }}" style="font:500 10px ui-monospace,Menlo,monospace;color:{{ wakeColor }};border:1px solid {{ wakeBorder }};border-radius:5px;padding:2px 7px;cursor:pointer" style-active="transform:scale(.92)">{{ wakeLabel }}</span>
+        </div>
+        <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);padding-left:15px">{{ wakeMeta }}</div>
+      </div>
+    </div>
+    <div style="font:400 10px/1.6 ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35);text-align:center">device-key E2E · relay stores nothing · revoke anytime</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPlan }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column">
+  <div style="padding:60px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+    <div onClick="{{ goHome }}" style="padding:4px 6px;margin-left:-6px;cursor:pointer"><svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    <div style="flex:1">
+      <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.01em">Ship usage-based invoicing</div>
+      <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">billing-api · plan role · grok-4.5:high</div>
+    </div>
+    <span style="font:500 9.5px ui-monospace,Menlo,monospace;color:{{ planBadgeColor }};border:1px solid rgba(255,255,255,.14);border-radius:5px;padding:2px 7px">{{ planBadge }}</span>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:12px 16px 16px">
+    <div style="background:#101012;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:10px 12px;margin-bottom:12px">
+      <div style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:rgba(244,244,242,.4);margin-bottom:5px">READ-ONLY DRAFT — NOTHING RAN YET</div>
+      <div style="font:400 12px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.8)">Meter usage per account, roll up hourly, price by tier, and land invoice line items behind a flag. 14 files in scope · est. 2 sessions.</div>
+    </div>
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35);margin-bottom:7px">STEPS · 6</div>
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;margin-bottom:12px">
+      <sc-for list="{{ planSteps }}" as="p" hint-placeholder-count="6">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05)">
+          <span style="font:500 10px ui-monospace,Menlo,monospace;color:{{ p.markColor }};width:12px;text-align:center">{{ p.mark }}</span>
+          <div style="flex:1">
+            <div style="font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">{{ p.n }} · {{ p.title }}</div>
+            <div style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">{{ p.file }}</div>
+          </div>
+          <span style="font:600 9px ui-monospace,Menlo,monospace;color:{{ p.riskColor }}">{{ p.risk }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <sc-if value="{{ planRefining }}" hint-placeholder-val="{{ false }}">
+    <div style="background:rgba(255,214,10,.07);border:1px solid rgba(255,214,10,.3);border-radius:10px;padding:9px 12px;margin-bottom:12px;font:400 11px ui-monospace,Menlo,monospace;color:#FFD60A">refinement requested — plan re-drafting on devbox, ~40s</div>
+    </sc-if>
+    <sc-if value="{{ planRejected }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="flex:1;font:400 11px ui-monospace,Menlo,monospace;color:#FF453A">plan rejected — nothing was executed</span>
+      <span onClick="{{ planRedraft }}" style="font:500 11px -apple-system,system-ui,sans-serif;color:#FF6A2B;cursor:pointer" style-hover="text-decoration:underline">Request new draft</span>
+    </div>
+    </sc-if>
+    <sc-if value="{{ planExecuting }}" hint-placeholder-val="{{ false }}">
+    <div style="background:rgba(255,106,43,.07);border:1px solid rgba(255,106,43,.35);border-radius:10px;padding:10px 12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="width:6px;height:6px;border-radius:50%;background:#FF6A2B;animation:omblink 1.6s infinite"></span>
+        <span style="font:500 11px ui-monospace,Menlo,monospace;color:#FF6A2B;flex:1">handed to executor · step 2/6</span>
+        <span onClick="{{ goalPause }}" style="font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6);cursor:pointer" style-hover="color:#F4F4F2">pause</span>
+      </div>
+      <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.1)"><div style="width:25%;height:100%;border-radius:2px;background:#FF6A2B;transition:width .6s"></div></div>
+    </div>
+    </sc-if>
+    <sc-if value="{{ planReady }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;gap:8px">
+      <div onClick="{{ planReject }}" style="flex:1;height:36px;border-radius:9px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:500 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.7);cursor:pointer" style-hover="border-color:#FF453A;color:#FF453A">Reject</div>
+      <div onClick="{{ planAskRefine }}" style="flex:1;height:36px;border-radius:9px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:500 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.85);cursor:pointer" style-hover="border-color:rgba(255,255,255,.4)">Refine…</div>
+      <div onClick="{{ planAccept }}" style="flex:1.5;height:36px;border-radius:9px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 12px -apple-system,system-ui,sans-serif;color:#000;cursor:pointer" style-hover="background:#FF8551" style-active="transform:scale(.97)">Accept & execute</div>
+    </div>
+    </sc-if>
+    <div style="margin-top:10px;text-align:center;font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">accepting pins the plan as a goal — /goal semantics apply</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSessions }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column">
+  <div style="padding:60px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+    <div onClick="{{ goHome }}" style="padding:4px 6px;margin-left:-6px;cursor:pointer"><svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Resume</div>
+    <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">omp -r</span>
+  </div>
+  <div style="padding:12px 16px 0;flex-shrink:0">
+    <div style="display:flex;gap:7px;margin-bottom:10px">
+      <span style="height:24px;border-radius:6px;background:rgba(255,106,43,.14);border:1px solid rgba(255,106,43,.4);display:flex;align-items:center;padding:0 9px;font:500 10.5px ui-monospace,Menlo,monospace;color:#FF6A2B">devbox — this folder</span>
+      <span style="height:24px;border-radius:6px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 9px;font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6);cursor:pointer" style-hover="border-color:rgba(255,255,255,.3)">all projects ⇥</span>
+    </div>
+    <div style="height:36px;border-radius:10px;background:#111113;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;padding:0 12px;gap:8px;margin-bottom:12px">
+      <svg width="13" height="13" viewBox="0 0 13 13"><circle cx="5.5" cy="5.5" r="4.5" fill="none" stroke="rgba(244,244,242,.35)" stroke-width="1.5"></circle><path d="M9 9l3 3" stroke="rgba(244,244,242,.35)" stroke-width="1.5" stroke-linecap="round"></path></svg>
+      <span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.35)">Title, session id, or any prompt text…</span>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:0 16px">
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden">
+      <sc-for list="{{ sessionRows }}" as="s" hint-placeholder-count="6">
+        <div onClick="{{ s.go }}" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer" style-hover="background:#111113">
+          <span style="width:6px;height:6px;border-radius:50%;background:{{ s.dot }};flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div style="font:400 13px -apple-system,system-ui,sans-serif;color:#F4F4F2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.title }}</div>
+            <div style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">{{ s.sub }}</div>
+          </div>
+          <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.3)">{{ s.id }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="padding:10px 2px;font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35);text-align:center">search reaches prompts deep in long sessions · ⇥ switches scope</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDiff }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column">
+  <div style="padding:60px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+    <div onClick="{{ goStream }}" style="padding:4px 6px;margin-left:-6px;cursor:pointer"><svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    <div style="flex:1;min-width:0">
+      <div style="font:600 15px ui-monospace,Menlo,monospace;color:#F4F4F2">pool.go</div>
+      <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">internal/resize · hashline-anchored edit</div>
+    </div>
+    <span style="font:500 10px ui-monospace,Menlo,monospace;color:#30D158">+11</span>
+    <span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF453A">−3</span>
+    <span style="font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.3);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:1px 4px">#a3f2</span>
+  </div>
+  <div style="flex:1;overflow-y:auto;background:#0A0A0B;font:400 11px/1.75 ui-monospace,Menlo,monospace;padding:10px 0">
+    <div style="padding:0 14px;color:rgba(244,244,242,.35)">@@ -12,9 +12,16 @@ package resize</div>
+    <div style="padding:0 14px;background:rgba(48,209,88,.09);color:#7CE59E">+const <span>maxRetained</span> = 1 &lt;&lt; 20 // 1 MiB</div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)"> </div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)"> var <span>bufPool</span> = sync.Pool{</div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)">   New: func() any { return new(bytes.Buffer) },</div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)"> }</div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)"> </div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)"> func Get() *bytes.Buffer {</div>
+    <div style="padding:0 14px;background:rgba(255,69,58,.09);color:#FF9C93">−  return <span>bufPool</span>.Get().(*bytes.Buffer)</div>
+    <div style="padding:0 14px;background:rgba(48,209,88,.09);color:#7CE59E">+  b := <span>bufPool</span>.Get().(*bytes.Buffer)</div>
+    <div style="padding:0 14px;background:rgba(48,209,88,.09);color:#7CE59E">+  b.Reset()</div>
+    <div style="padding:0 14px;background:rgba(48,209,88,.09);color:#7CE59E">+  return b</div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)"> }</div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)"> </div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)"> func Put(b *bytes.Buffer) {</div>
+    <div style="padding:0 14px;background:rgba(255,69,58,.09);color:#FF9C93">−  b.Reset()</div>
+    <div style="padding:0 14px;background:rgba(255,69,58,.09);color:#FF9C93">−  <span>bufPool</span>.Put(b)</div>
+    <div style="padding:0 14px;background:rgba(48,209,88,.09);color:#7CE59E">+  if b.Cap() &gt; <span>maxRetained</span> {</div>
+    <div style="padding:0 14px;background:rgba(48,209,88,.09);color:#7CE59E">+    return // drop oversized bufs</div>
+    <div style="padding:0 14px;background:rgba(48,209,88,.09);color:#7CE59E">+  }</div>
+    <div style="padding:0 14px;background:rgba(48,209,88,.09);color:#7CE59E">+  b.Reset()</div>
+    <div style="padding:0 14px;background:rgba(48,209,88,.09);color:#7CE59E">+  <span>bufPool</span>.Put(b)</div>
+    <div style="padding:0 14px;color:rgba(244,244,242,.55)"> }</div>
+  </div>
+  <div style="flex-shrink:0;padding:10px 16px 30px;border-top:1px solid rgba(255,255,255,.08);background:#0A0A0B">
+    <div style="display:flex;gap:10px;font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);margin-bottom:9px">
+      <span style="color:#30D158">lsp ✓ 0 diagnostics</span><span>gofmt ok</span><span style="margin-left:auto">hash re-anchors if the file moved</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div onClick="{{ diffRequest }}" style="flex:1;height:36px;border-radius:9px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:500 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.85);cursor:pointer" style-hover="border-color:rgba(255,255,255,.4)">Request changes</div>
+      <div onClick="{{ diffLgtm }}" style="flex:1;height:36px;border-radius:9px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 12px -apple-system,system-ui,sans-serif;color:#000;cursor:pointer" style-hover="background:#FF8551" style-active="transform:scale(.97)">Looks good</div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isWelcome }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 30px;text-align:center">
+  <div style="width:72px;height:72px;border-radius:19px;background:#141416;border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:700 32px ui-monospace,Menlo,monospace;color:#FF6A2B;margin-bottom:18px">å</div>
+  <div style="font:700 26px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.02em;margin-bottom:8px">Attaché</div>
+  <div style="font:400 13.5px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);margin-bottom:26px;max-width:280px">A native remote for omp. Full visibility, zero terminal.</div>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:30px;text-align:left">
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font:600 10px ui-monospace,Menlo,monospace;color:#FF6A2B">01</span><span style="font:400 12.5px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.8)">Answer approvals from the lock screen</span></div>
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font:600 10px ui-monospace,Menlo,monospace;color:#FF6A2B">02</span><span style="font:400 12.5px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.8)">Watch advisor + subagents live, steer mid-flight</span></div>
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font:600 10px ui-monospace,Menlo,monospace;color:#FF6A2B">03</span><span style="font:400 12.5px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.8)">Every session, branch and plan in your pocket</span></div>
+  </div>
+  <div onClick="{{ obStart }}" style="width:100%;height:44px;border-radius:11px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 14px -apple-system,system-ui,sans-serif;color:#000;cursor:pointer;margin-bottom:10px" style-hover="background:#FF8551" style-active="transform:scale(.98)">Pair your first machine</div>
+  <div onClick="{{ obSkip }}" style="font:500 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.5);cursor:pointer;padding:6px" style-hover="color:#F4F4F2">Explore with demo data</div>
+  <div style="position:absolute;bottom:44px;font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.3)">device-key E2E · your code never leaves your machines</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isNotify }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 30px;text-align:center">
+  <div style="width:64px;height:64px;border-radius:50%;border:1.5px solid rgba(255,214,10,.5);display:flex;align-items:center;justify-content:center;margin-bottom:18px"><span style="width:10px;height:10px;border-radius:50%;background:#FFD60A;animation:omblink 1.6s infinite"></span></div>
+  <div style="font:700 22px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.02em;margin-bottom:8px">Never miss an approval</div>
+  <div style="font:400 13px/1.55 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);margin-bottom:28px;max-width:290px">Approvals, goal completions and advisor interrupts land on your lock screen with Allow / Deny right there. Per-session mute any time.</div>
+  <div onClick="{{ obFinish }}" style="width:100%;height:44px;border-radius:11px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 14px -apple-system,system-ui,sans-serif;color:#000;cursor:pointer;margin-bottom:10px" style-hover="background:#FF8551" style-active="transform:scale(.98)">Enable notifications</div>
+  <div onClick="{{ obFinish }}" style="font:500 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.5);cursor:pointer;padding:6px" style-hover="color:#F4F4F2">Later</div>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+<div style="width:290px;display:flex;flex-direction:column;gap:14px;position:sticky;top:42px">
+  <div style="display:flex;align-items:baseline;gap:9px">
+    <span style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#FF6A2B;color:#000;border-radius:4px">PROTOTYPE</span>
+    <span style="font:600 13px -apple-system,system-ui,sans-serif;color:#e8e8e6">Attaché · direction 1a</span>
+  </div>
+  <div style="background:#1a1a1c;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:13px 14px">
+    <div style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:rgba(232,232,230,.4);margin-bottom:9px">JUMP TO SCREEN</div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px">
+      <sc-for list="{{ jumpChips }}" as="j" hint-placeholder-count="6">
+        <span onClick="{{ j.go }}" style="height:26px;border-radius:7px;background:{{ j.bg }};border:1px solid {{ j.border }};display:flex;align-items:center;padding:0 10px;font:500 10.5px ui-monospace,Menlo,monospace;color:{{ j.color }};cursor:pointer" style-hover="border-color:#FF6A2B">{{ j.label }}</span>
+      </sc-for>
+    </div>
+  </div>
+  <div style="background:#1a1a1c;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:13px 14px">
+    <div style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:rgba(232,232,230,.4);margin-bottom:9px">WIRED INTERACTIONS</div>
+    <div style="font:400 11px/1.75 -apple-system,system-ui,sans-serif;color:rgba(232,232,230,.65)">
+      <b style="color:#e8e8e6">Home</b> — pinned cards navigate; chips open agents / approvals / machines / roles.<br>
+      <b style="color:#e8e8e6">Stream</b> — tap tool cards to expand (Ctrl+O), answer the inline approval and the session continues, advisor forward/dismiss, send messages, cycle Chat→Plan→Goal→Loop, @role picker, / palette, stop turn.<br>
+      <b style="color:#e8e8e6">Agents</b> — tap tiles to focus, steer the focused agent.<br>
+      <b style="color:#e8e8e6">Approvals</b> — resolve all three, watch the badge and queue-clear state.<br>
+      <b style="color:#e8e8e6">Roles</b> — cycle thinking levels, switch approval mode, toggle hindsight.<br>
+      <b style="color:#e8e8e6">Machines</b> — simulate pairing, wake build-01.<br>
+      <b style="color:#e8e8e6">Plan</b> — reject / refine / accept & execute (watch the home card).<br>
+      <b style="color:#e8e8e6">Goal</b> — cycle composer to GOAL, send an objective → pinned banner ticks.<br>
+      <b style="color:#e8e8e6">Branch</b> — ⑂ in the stream header, pick a turn.<br>
+      <b style="color:#e8e8e6">Diff</b> — "review ▸" on the edit card → full-screen review.<br>
+      <b style="color:#e8e8e6">Resume</b> — tap home search; <b style="color:#e8e8e6">first-run</b> — welcome → pair → notifications.
+    </div>
+  </div>
+  <div style="background:#1a1a1c;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:13px 14px">
+    <div style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:rgba(232,232,230,.4);margin-bottom:9px">SIMULATORS</div>
+    <span onClick="{{ toggleOffline }}" style="height:26px;border-radius:7px;background:{{ offlineChipBg }};border:1px solid {{ offlineChipBorder }};display:inline-flex;align-items:center;padding:0 10px;font:500 10.5px ui-monospace,Menlo,monospace;color:{{ offlineChipColor }};cursor:pointer">{{ offlineToggleLabel }}</span>
+    <div style="font:400 10px/1.5 -apple-system,system-ui,sans-serif;color:rgba(232,232,230,.4);margin-top:8px">Cuts the devbox link: banner drops in, sends queue instead of running, machine chip flips red.</div>
+  </div>
+  <div style="font:400 10.5px/1.6 -apple-system,system-ui,sans-serif;color:rgba(232,232,230,.4)">Context %, cost and turn count tick as the simulated session works. Tweaks: advisor on/off, reply latency, start screen.</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1300, &quot;height&quot;: 980}, &quot;advisorEnabled&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Simulation&quot;}, &quot;replyDelayMs&quot;: {&quot;editor&quot;: &quot;range&quot;, &quot;default&quot;: 1100, &quot;min&quot;: 300, &quot;max&quot;: 3000, &quot;step&quot;: 100, &quot;unit&quot;: &quot;ms&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Simulation&quot;}, &quot;startScreen&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;home&quot;, &quot;options&quot;: [&quot;home&quot;, &quot;stream&quot;, &quot;agents&quot;, &quot;approvals&quot;, &quot;settings&quot;, &quot;machines&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Simulation&quot;}}">
+class Component extends DCLogic {
+  state = {
+    screen: null, searchOpen: false, editOpen: false,
+    advisor: 'open', inline: 'pending',
+    messages: [], typing: false, turnActive: true,
+    mode: 0, role: 'default', roleSheet: false, slashSheet: false, draft: '',
+    queue: [
+      {id: 'q1', riskLabel: 'HIGH · BASH', riskColor: '#FF453A', src: 'pixeld · 40s ago', cmd: 'rm -rf tmp/profiles.old', reason: 'clear stale pprof baselines before re-comparing', status: 'pending'},
+      {id: 'q2', riskLabel: 'MED · WRITE OUTSIDE WORKSPACE', riskColor: '#FFD60A', src: 'pixeld · 2m', diff: true, reason: '~/.omp/agent/models.yml — bump vision thinking level', status: 'pending'},
+      {id: 'q3', riskLabel: 'LOW · MCP', riskColor: '#30D158', src: 'billing-api · 12m', reason: 'github.create_pr — "invoicing: metered usage rollups" → base main, draft', status: 'pending'}
+    ],
+    focused: 'reviewer', steerDraft: '',
+    steers: {explore: [], reviewer: [], librarian: [], oracle: []},
+    thinking: {'default': 'max', plan: 'high', slow: 'xhigh', task: 'medium', smol: 'low', vision: 'medium', designer: 'high', advisor: 'high'},
+    approvalMode: 1, hindsight: true,
+    ctxPct: 66, cost: 3.84, turnNo: 14, elapsed: 1092,
+    wakeState: 'asleep', pairStep: 0, copied: false,
+    plan: 'ready', branchSheet: false, goal: null, obMode: false, offline: false
+  };
+  componentDidMount() {
+    this._t = setInterval(() => this.setState(s => ({elapsed: s.elapsed + 1})), 1000);
+    this._scroll();
+  }
+  componentWillUnmount() { clearInterval(this._t); [this._a,this._b,this._c,this._d].forEach(t => t && clearTimeout(t)); }
+  componentDidUpdate() { this._scroll(); }
+  _scroll() { const el = this._streamEl; if (el && this.state.screen === 'stream') el.scrollTop = el.scrollHeight; }
+  delay() { return Number(this.props.replyDelayMs ?? 1100); }
+  push(msg) { this.setState(s => ({messages: [...s.messages, msg]})); }
+  agentReply(text, bump) {
+    this.setState({typing: true});
+    this._a = setTimeout(() => {
+      this.setState(s => ({typing: false, ctxPct: Math.min(84, s.ctxPct + (bump || 2)), cost: +(s.cost + 0.11).toFixed(2), turnNo: s.turnNo + 1, goal: s.goal && s.goal.active ? {...s.goal, turns: s.goal.turns + 1} : s.goal}));
+      this.push({kind: 'agent', text});
+    }, this.delay());
+  }
+  extraVals(S, screen, nav) {
+    const PLAN_STEPS = [
+      ['Add usage_events table + backfill migration', 'db/migrations/0142_usage_events.sql', 'MED', '#FFD60A'],
+      ['Hourly metered rollup job', 'jobs/rollup.go', 'LOW', '#30D158'],
+      ['Tiered price resolver', 'billing/price.go', 'LOW', '#30D158'],
+      ['Invoice line-item generator changes', 'billing/invoice.go', 'HIGH', '#FF453A'],
+      ['Backfill dry-run + reconciliation report', 'scripts/reconcile.go', 'MED', '#FFD60A'],
+      ['Feature flag + staged rollout', 'config/flags.yml', 'LOW', '#30D158']
+    ];
+    const executing = S.plan === 'executing';
+    const goalOn = !!(S.goal && S.goal.active);
+    return {
+      isPlan: screen === 'plan', isSessions: screen === 'sessions', isDiff: screen === 'diff',
+      isWelcome: screen === 'welcome', isNotify: screen === 'notify',
+      goPlan: nav('plan'), goSessions: nav('sessions'), goDiff: nav('diff'), goWelcome: nav('welcome'),
+      openDiff: (e) => { e.stopPropagation(); this.setState({screen: 'diff'}); },
+      planExecuting: executing, planReady: S.plan === 'ready', planRejected: S.plan === 'rejected', planRefining: S.plan === 'refine',
+      planSteps: PLAN_STEPS.map((p, i) => ({
+        n: String(i + 1).padStart(2, '0'), title: p[0], file: p[1], risk: p[2], riskColor: p[3],
+        mark: executing ? (i === 0 ? '✓' : i === 1 ? '●' : '·') : '·',
+        markColor: executing ? (i === 0 ? '#30D158' : i === 1 ? '#FF6A2B' : 'rgba(244,244,242,.3)') : 'rgba(244,244,242,.3)'
+      })),
+      planAccept: () => this.setState({plan: 'executing'}),
+      planReject: () => this.setState({plan: 'rejected'}),
+      planAskRefine: () => this.setState({plan: 'refine'}),
+      planRedraft: () => this.setState({plan: 'ready'}),
+      planBadge: executing ? 'EXECUTING' : S.plan === 'rejected' ? 'REJECTED' : 'NEEDS YOU',
+      planBadgeColor: executing ? '#FF6A2B' : S.plan === 'rejected' ? '#FF453A' : '#FFD60A',
+      planCardBorder: executing ? 'rgba(255,106,43,.35)' : S.plan === 'rejected' ? 'rgba(255,255,255,.08)' : 'rgba(255,214,10,.3)',
+      planCardLine: executing ? 'executing plan · step 2/6 · rollup job' : S.plan === 'rejected' ? 'plan rejected — session idle' : 'plan ready for review · 6 steps · waiting 12m',
+      planDot: executing ? '#FF6A2B' : S.plan === 'rejected' ? 'rgba(244,244,242,.3)' : '#FFD60A',
+      sessionRows: [
+        {title: 'Fix decoder memory leak', sub: 'pixeld · live · turn ' + S.turnNo, id: '#9f31', dot: '#FF6A2B', go: nav('stream')},
+        {title: 'Ship usage-based invoicing', sub: 'billing-api · plan', id: '#77ac', dot: '#FFD60A', go: nav('plan')},
+        {title: '⑂ leak fix — alt approach', sub: 'pixeld · branch of #9f31 · 3h', id: '#b2e0', dot: 'rgba(244,244,242,.25)', go: () => {}},
+        {title: 'Batch export presets', sub: 'pixeld · merged · 2h', id: '#31be', dot: '#30D158', go: () => {}},
+        {title: 'Investigate AVIF encode speed', sub: 'pixeld · idle · 1d', id: '#c04d', dot: 'rgba(244,244,242,.25)', go: () => {}},
+        {title: 'Docs search relevance pass', sub: 'omp-web · idle · 2d', id: '#5aa1', dot: 'rgba(244,244,242,.25)', go: () => {}}
+      ],
+      branchSheetOpen: S.branchSheet,
+      toggleBranchSheet: () => this.setState(s => ({branchSheet: !s.branchSheet, roleSheet: false, slashSheet: false})),
+      branchItems: [14, 13, 12].map(n => ({
+        label: 'from turn ' + n + (n === 14 ? ' — now' : n === 13 ? ' — before advisor note' : ' — before pool.go edit'),
+        pick: () => { this.setState({branchSheet: false}); this.push({kind: 'steer', text: '⑂ branched from turn ' + n + ' → "leak fix — alt approach" · this session untouched'}); }
+      })),
+      diffLgtm: () => { this.setState({screen: 'stream'}); this.push({kind: 'steer', text: 'review: looks good — continue'}); },
+      diffRequest: () => { this.setState({screen: 'stream'}); this.push({kind: 'steer', text: 'review: export a setter for maxRetained so loadgen can tune it'}); this.agentReply('Fair — adding SetMaxRetained(n) behind a testing build tag and updating the loadgen harness.', 2); },
+      goalOn, goalObjective: goalOn ? S.goal.objective : '', goalTurns: goalOn ? S.goal.turns : 0,
+      goalPause: () => { this.setState({goal: {...S.goal, active: false}}); this.push({kind: 'steer', text: 'goal paused — resume with /goal'}); },
+      goalDrop: () => { this.setState({goal: null}); this.push({kind: 'steer', text: 'goal dropped'}); },
+      obStart: () => this.setState({obMode: true, screen: 'machines'}),
+      obSkip: nav('home'), obContinue: nav('notify'),
+      obFinish: () => this.setState({obMode: false, screen: 'home'}),
+      obPairBar: S.obMode && S.pairStep >= 4,
+      offline: S.offline,
+      toggleOffline: () => this.setState(s => ({offline: !s.offline})),
+      offlineToggleLabel: S.offline ? 'devbox offline — tap to restore' : 'simulate offline',
+      machineDot: S.offline ? '#FF453A' : '#30D158',
+      machineLabel: S.offline ? 'devbox · unreachable — retrying' : 'devbox · tailscale · 12ms',
+      offlineChipBg: S.offline ? 'rgba(255,69,58,.16)' : '#111113',
+      offlineChipBorder: S.offline ? 'rgba(255,69,58,.5)' : 'rgba(255,255,255,.1)',
+      offlineChipColor: S.offline ? '#FF453A' : 'rgba(232,232,230,.65)'
+    };
+  }
+  renderVals() {
+    const S = this.state, screen = S.screen ?? (this.props.startScreen ?? 'home');
+    const nav = (sc) => () => this.setState({screen: sc, roleSheet: false, slashSheet: false});
+    const MODES = ['CHAT', 'PLAN', 'GOAL', 'LOOP'];
+    const THINK = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+    const ROLES = [
+      {name: 'default', model: 'deepseek-v4-flash', color: '#FF6A2B'},
+      {name: 'plan', model: 'grok-4.5', color: 'rgba(244,244,242,.6)'},
+      {name: 'slow', model: 'claude-opus-4.6', color: 'rgba(244,244,242,.6)'},
+      {name: 'task', model: 'deepseek-v4-flash', color: 'rgba(244,244,242,.6)'},
+      {name: 'smol', model: 'deepseek-v4-flash', color: 'rgba(244,244,242,.6)'},
+      {name: 'vision', model: 'grok-4.5', color: 'rgba(244,244,242,.6)'},
+      {name: 'designer', model: 'claude-sonnet-4.5', color: 'rgba(244,244,242,.6)'},
+      {name: 'advisor', model: 'grok-4.5', color: '#FFD60A'}
+    ];
+    const AGENTS = {
+      explore: {label: 'explore', dot: '●', dotColor: '#FF6A2B', border: 'rgba(255,106,43,.4)', opacity: 1, line: 'tracing Get() callers across cmd/loadgen…', meta: '2m14s · 8.1k tok · 12 calls', handle: 'agent://b2c9', lines: [
+        {kind: 'tool', text: 'search Get( in cmd/', meta: '22 hits'},
+        {kind: 'tool', text: 'read cmd/loadgen/worker.go', meta: '0.3s'},
+        {kind: 'text', text: 'Three call sites never return buffers on error. Flagging worker.go:141, batch.go:77, warm.go:19 for the defer fix.'}
+      ]},
+      reviewer: {label: 'reviewer', dot: '●', dotColor: '#FF6A2B', border: 'rgba(255,106,43,.4)', opacity: 1, line: 'reviewing pool.go diff for API breakage', meta: '41s · 3.3k tok · 4 calls', handle: 'agent://7f31', lines: [
+        {kind: 'tool', text: 'read internal/resize/pool.go', meta: '0.4s'},
+        {kind: 'text', text: 'Public API unchanged. One concern: maxRetained is package-private — loadgen tests can\u2019t tune it. Consider exporting a setter or build tag.'}
+      ]},
+      librarian: {label: 'librarian', dot: '✓', dotColor: '#30D158', border: 'rgba(255,255,255,.08)', opacity: .85, line: 'sync.Pool retention semantics — 3 sources', meta: 'done · 5.9k tok · report ready', handle: 'agent://ce02', lines: [
+        {kind: 'tool', text: 'fetch go.dev/doc — sync.Pool notes', meta: '1.1s'},
+        {kind: 'text', text: 'Report: pools drop objects on GC; capping retained capacity at Put() is the canonical fix (see runtime issue #23199).'}
+      ]},
+      oracle: {label: 'oracle', dot: '○', dotColor: 'rgba(244,244,242,.4)', border: 'rgba(255,255,255,.14)', opacity: .7, line: 'queued: sanity-check pprof methodology', meta: 'waiting on reviewer', handle: 'agent://—', lines: [
+        {kind: 'text', text: 'Queued. Will compare alloc_space before/after under identical load once reviewer signs off.'}
+      ]}
+    };
+    const fmtEl = Math.floor(S.elapsed / 60) + 'm' + String(S.elapsed % 60).padStart(2, '0') + 's';
+    const pending = S.queue.filter(q => q.status === 'pending').length;
+    const msgs = S.messages.map(m => ({
+      text: m.text, meta: m.meta || '', icon: m.icon || '$', iconColor: m.iconColor || '#30D158',
+      isUser: m.kind === 'user', isAgent: m.kind === 'agent', isTool: m.kind === 'tool', isSteer: m.kind === 'steer'
+    }));
+    const send = () => {
+      const t = S.draft.trim(); if (!t) return;
+      const mode = MODES[S.mode];
+      if (S.offline) { this.setState({draft: ''}); this.push({kind: 'steer', text: 'queued: "' + t + '" — sends when devbox reconnects'}); return; }
+      this.setState({draft: '', slashSheet: false, roleSheet: false});
+      if (mode === 'GOAL' && !(S.goal && S.goal.active)) { this.setState({goal: {active: true, objective: t, turns: 1}}); this.push({kind: 'steer', text: 'goal pinned — hidden continuation steer active'}); this.agentReply('Goal accepted. Working autonomously — each turn re-submits the objective until every deliverable is proven or the budget runs out.', 2); return; }
+      if (t.startsWith('/')) {
+        this.push({kind: 'steer', text: t + ' — accepted'});
+        this.agentReply(t.startsWith('/plan') ? 'Entering plan mode: drafting a read-only proposal against grok-4.5. I\u2019ll hand back a structured plan for your review.' : 'Command accepted — applied to this session.', 1);
+        return;
+      }
+      this.push({kind: 'user', text: (mode !== 'CHAT' ? '[' + mode.toLowerCase() + '] ' : '') + t});
+      const replies = [
+        'Applied the defer in renderThumb and re-ran the load test — RSS flat at 212 MB over 5 m. Writing the pprof comparison next.',
+        'Comparison written: alloc_space at resize.(*Pool).Get down 97%. Ready to open a PR when you are.',
+        'Noted — adjusting and re-running the smallest relevant test.'
+      ];
+      this.agentReply(replies[Math.min(S.messages.filter(m => m.kind === 'user').length, 2)], 3);
+    };
+    const steerSend = () => {
+      const t = S.steerDraft.trim(); if (!t) return;
+      this.setState(s => ({steerDraft: '', steers: {...s.steers, [s.focused]: [...s.steers[s.focused], t]}}));
+    };
+    const foc = AGENTS[S.focused];
+    const focusedLines = [
+      ...foc.lines.map(l => ({text: l.text, meta: l.meta || '', isTool: l.kind === 'tool', isText: l.kind === 'text', isSteer: false})),
+      ...S.steers[S.focused].map(t => ({text: t, meta: '', isTool: false, isText: false, isSteer: true}))
+    ];
+    const PAIR = ['K7', '4F', '9Q', '2X'];
+    const pairCells = PAIR.map((txt, i) => i < S.pairStep
+      ? {txt, border: 'rgba(255,106,43,.5)', color: '#F4F4F2'}
+      : {txt: i === S.pairStep ? '··' : '', border: 'rgba(255,255,255,.12)', color: 'rgba(244,244,242,.25)'});
+    return {
+      ...this.extraVals(S, screen, nav),
+      isHome: screen === 'home', isStream: screen === 'stream', isAgents: screen === 'agents',
+      isApprovals: screen === 'approvals', isSettings: screen === 'settings', isMachines: screen === 'machines',
+      goHome: nav('home'), goStream: nav('stream'), goAgents: nav('agents'),
+      goApprovals: nav('approvals'), goSettings: nav('settings'), goMachines: nav('machines'),
+      jumpChips: [['home', 'home'], ['stream', 'stream'], ['plan', 'plan'], ['agents', 'agents'], ['approvals', 'approvals'], ['diff', 'diff'], ['resume', 'sessions'], ['roles', 'settings'], ['machines', 'machines'], ['first-run', 'welcome']].map(([label, sc]) => ({
+        label, go: nav(sc),
+        bg: screen === sc ? 'rgba(255,106,43,.16)' : '#111113',
+        border: screen === sc ? 'rgba(255,106,43,.5)' : 'rgba(255,255,255,.1)',
+        color: screen === sc ? '#FF6A2B' : 'rgba(232,232,230,.65)'
+      })),
+      ctxPct: S.ctxPct, cost: S.cost.toFixed(2), turnNo: S.turnNo, elapsedLabel: fmtEl,
+      ctxLabel: (S.ctxPct * 2).toFixed(1) + 'k/200k',
+      homeStatusLine: S.inline === 'pending' ? 'waiting on approval · rm -rf tmp/profiles.old' : 'editing internal/resize/pool.go · turn ' + S.turnNo,
+      pendingCount: pending, queueClear: pending === 0,
+      searchOpen: S.searchOpen, editOpen: S.editOpen,
+      searchChevron: S.searchOpen ? '▴' : '▾', editHint: S.editOpen ? 'tap to collapse' : 'tap to expand',
+      toggleSearchCard: () => this.setState(s => ({searchOpen: !s.searchOpen})),
+      toggleEditCard: () => this.setState(s => ({editOpen: !s.editOpen})),
+      advisorVisible: (this.props.advisorEnabled ?? true) && S.advisor === 'open',
+      advisorAddressed: S.advisor === 'addressed',
+      advisorDismiss: () => this.setState({advisor: 'dismissed'}),
+      advisorAddress: () => {
+        this.setState({advisor: 'addressed'});
+        this.push({kind: 'steer', text: 'steer: address advisor note — defer Put() on error paths in renderThumb'});
+        this.agentReply('Good catch from the advisor. Wrapping renderThumb\u2019s buffer in defer pool.Put(buf) so error paths release too — editing thumb.go now.', 2);
+      },
+      inlinePending: S.inline === 'pending',
+      inlineAllow: () => {
+        this.setState({inline: 'allowed'});
+        this.push({kind: 'tool', text: 'bash rm -rf tmp/profiles.old', meta: 'exit 0 · 0.3s', icon: '$', iconColor: '#30D158'});
+        this.agentReply('Baselines cleared. Re-running the 5-minute load with -memprofile for a clean comparison.', 2);
+      },
+      inlineAlways: () => {
+        this.setState({inline: 'allowed'});
+        this.push({kind: 'steer', text: 'rule added: allow rm -rf under tmp/ for this project'});
+        this.push({kind: 'tool', text: 'bash rm -rf tmp/profiles.old', meta: 'exit 0 · 0.3s', icon: '$', iconColor: '#30D158'});
+        this.agentReply('Baselines cleared. Re-running the 5-minute load with -memprofile for a clean comparison.', 2);
+      },
+      inlineDeny: () => {
+        this.setState({inline: 'denied'});
+        this.agentReply('Understood — keeping the old baselines. I\u2019ll write the new profiles to tmp/profiles.new instead.', 1);
+      },
+      messages: msgs, typing: S.typing, turnActive: S.turnActive && !S.typing,
+      stopTurn: () => { this.setState({turnActive: false, typing: false}); this.push({kind: 'steer', text: 'turn stopped — omp is idle, follow up to continue'}); },
+      draft: S.draft,
+      onDraft: (e) => this.setState({draft: e.target.value}),
+      onDraftKey: (e) => { if (e.key === 'Enter') send(); },
+      send,
+      modeLabel: MODES[S.mode], cycleMode: () => this.setState(s => ({mode: (s.mode + 1) % 4})),
+      roleLabel: S.role, modelLabel: ROLES.find(r => r.name === S.role).model.split('-').slice(0, 2).join('-'),
+      roleSheetOpen: S.roleSheet, toggleRoleSheet: () => this.setState(s => ({roleSheet: !s.roleSheet, slashSheet: false})),
+      roleItems: ROLES.map(r => ({...r, think: this.state.thinking[r.name], pick: () => this.setState({role: r.name, roleSheet: false})})),
+      slashOpen: S.slashSheet, toggleSlash: () => this.setState(s => ({slashSheet: !s.slashSheet, roleSheet: false})),
+      slashItems: [
+        ['/plan', 'read-only drafting pass, structured handoff'],
+        ['/goal', 'pin an objective, self-driving loop until proven done'],
+        ['/loop', 'resubmit the same prompt N times'],
+        ['/compact', 'snapcompact the context now'],
+        ['/agents', 'open the agent hub'],
+        ['/resume', 'session picker'],
+        ['/new', 'new saved session']
+      ].map(([cmd, desc]) => ({cmd, desc, pick: () => this.setState({draft: cmd + ' ', slashSheet: false})})),
+      streamRef: (el) => { this._streamEl = el; },
+      agentTiles: Object.keys(AGENTS).map(k => ({...AGENTS[k], name: AGENTS[k].label, focus: () => this.setState({focused: k}),
+        border: k === S.focused ? '#FF6A2B' : AGENTS[k].border})),
+      focusedName: foc.label, focusedHandle: foc.handle, focusedLines,
+      steerDraft: S.steerDraft,
+      onSteerDraft: (e) => this.setState({steerDraft: e.target.value}),
+      onSteerKey: (e) => { if (e.key === 'Enter') steerSend(); },
+      sendSteer: steerSend,
+      queueItems: S.queue.map(q => {
+        const set = (status) => () => this.setState(s => ({queue: s.queue.map(x => x.id === q.id ? {...x, status} : x)}));
+        const resolved = q.status !== 'pending';
+        return {
+          riskLabel: q.riskLabel, riskColor: q.riskColor, src: q.src, reason: q.reason,
+          cmd: q.cmd || '', hasCmd: !!q.cmd, hasDiff: !!q.diff,
+          pending: !resolved, resolved, opacity: resolved ? .62 : 1,
+          verdict: q.status === 'denied' ? 'denied' : q.status === 'always' ? 'allowed · rule saved' : 'allowed once',
+          verdictIcon: q.status === 'denied' ? '✕' : '✓',
+          verdictColor: q.status === 'denied' ? '#FF453A' : '#30D158',
+          deny: set('denied'), allow: set('allowed'), always: set('always')
+        };
+      }),
+      roleRows: ROLES.map(r => ({
+        name: r.name, model: r.model, color: r.color,
+        think: S.thinking[r.name],
+        thinkColor: r.name === 'default' ? '#FF6A2B' : 'rgba(244,244,242,.55)',
+        thinkBorder: r.name === 'default' ? 'rgba(255,106,43,.45)' : 'rgba(255,255,255,.18)',
+        cycle: () => this.setState(s => ({thinking: {...s.thinking, [r.name]: THINK[(THINK.indexOf(s.thinking[r.name]) + 1) % THINK.length]}}))
+      })),
+      approvalModes: ['yolo', 'ask destr.', 'ask all'].map((label, i) => ({
+        label, pick: () => this.setState({approvalMode: i}),
+        weight: S.approvalMode === i ? 600 : 500,
+        color: S.approvalMode === i ? '#000' : 'rgba(244,244,242,.45)',
+        bg: S.approvalMode === i ? '#FF6A2B' : 'transparent'
+      })),
+      hindsightBg: S.hindsight ? '#FF6A2B' : 'rgba(255,255,255,.14)',
+      hindsightKnob: S.hindsight ? 18 : 2,
+      toggleHindsight: () => this.setState(s => ({hindsight: !s.hindsight})),
+      pairCells, pairDone: S.pairStep >= 4, pairNotDone: S.pairStep < 4,
+      pairType: () => {
+        if (S.pairStep >= 4) { this.setState({pairStep: 0}); return; }
+        const step = () => this.setState(s => ({pairStep: s.pairStep + 1}), () => { if (this.state.pairStep < 4) this._c = setTimeout(step, 320); });
+        step();
+      },
+      copyLabel: S.copied ? 'copied' : 'copy',
+      copyPair: () => { this.setState({copied: true}); this._d = setTimeout(() => this.setState({copied: false}), 1400); },
+      wakeDot: S.wakeState === 'online' ? '#30D158' : S.wakeState === 'waking' ? '#FFD60A' : 'rgba(244,244,242,.25)',
+      wakeLabel: S.wakeState === 'online' ? 'online' : S.wakeState === 'waking' ? 'waking…' : 'wake',
+      wakeColor: S.wakeState === 'online' ? '#30D158' : S.wakeState === 'waking' ? '#FFD60A' : '#FF6A2B',
+      wakeBorder: S.wakeState === 'online' ? 'rgba(48,209,88,.45)' : S.wakeState === 'waking' ? 'rgba(255,214,10,.45)' : 'rgba(255,106,43,.45)',
+      wakeMeta: S.wakeState === 'online' ? 'ssh relay · 31ms · omp 0.9.4' : S.wakeState === 'waking' ? 'ssh relay · magic packet sent…' : 'ssh relay · asleep 3h · wake-on-lan ready',
+      wake: () => {
+        if (S.wakeState !== 'asleep') return;
+        this.setState({wakeState: 'waking'});
+        this._b = setTimeout(() => this.setState({wakeState: 'online'}), 1600);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

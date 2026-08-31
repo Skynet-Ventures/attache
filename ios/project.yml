@@ -1,0 +1,40 @@
+# XcodeGen project definition — run `xcodegen generate` in this directory.
+# Open-source builders: change PRODUCT_BUNDLE_IDENTIFIER and DEVELOPMENT_TEAM
+# (or set them in a local xcconfig) before archiving for your own account.
+name: Attache
+options:
+  bundleIdPrefix: io.skynetventures
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: NO
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Attache:
+    type: application
+    platform: iOS
+    sources:
+      - path: Attache
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.skynetventures.attache
+        INFOPLIST_FILE: Attache/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+        ENABLE_PREVIEWS: YES
+  AttacheTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: AttacheTests
+    dependencies:
+      - target: Attache
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.skynetventures.attache.tests
+        GENERATE_INFOPLIST_FILE: YES

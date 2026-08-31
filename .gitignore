@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Bun / Node
+node_modules/
+
+# Xcode
+ios/Attache.xcodeproj/
+ios/build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Local state
+.attache/

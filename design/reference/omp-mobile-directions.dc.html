@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body{margin:0;background:#edecea;font-family:-apple-system,system-ui,sans-serif}
+a{color:#1a1a1a}a:hover{color:#e05a1f}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 -apple-system,system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:56px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:14px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 -apple-system,system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 -apple-system,system-ui,sans-serif;color:rgba(0,0,0,.5)}
+</style>
+</helmet>
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Attaché — an iOS remote for omp · 3 directions × 7 surfaces</span></div>
+<div class="dv-card" style="width:1040px;padding:26px 30px;margin-bottom:36px">
+  <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:14px">
+    <span style="font:700 20px -apple-system,system-ui,sans-serif;letter-spacing:-.02em">Attaché</span>
+    <span style="font:500 11px ui-monospace,Menlo,monospace;color:rgba(0,0,0,.45)">working name — the aide that carries omp's business while you're away. Alternates: Skipper, Waypoint.</span>
+  </div>
+  <div style="font:400 12.5px/1.55 -apple-system,system-ui,sans-serif;color:#333;max-width:900px;margin-bottom:18px">A native iOS GUI for driving omp remotely — not a terminal. Everything omp surfaces in the TUI has a first-class home here: compact tool cards you tap to expand (the Ctrl+O gesture), advisor commentary as a distinct inline voice, approvals answered from the stream or the lock screen, subagents as live tiles you can steer. Demo session throughout: fixing a memory leak in a Go image pipeline (<span style="font-family:ui-monospace,Menlo,monospace">pixeld</span>), real code + diffs.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 32px;margin-bottom:18px">
+    <div style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:rgba(0,0,0,.4);grid-column:1/-1;margin-bottom:2px">OMP CAPABILITY → WHERE IT LIVES</div>
+    <div style="font:400 11px/1.7 ui-monospace,Menlo,monospace;color:#444">sessions · resume / branch / share → 01 home, header menu<br>turn stream, compact cards (Ctrl+O) → 02 tap-to-expand cards<br>advisor role, can interrupt → 02 inline voice blocks<br>approvals (destructive tools) → 02 inline · 04 queue · 07 push<br>subagents, steer, agent:// transcripts → 03 live tiles + sheet<br>plan / goal / loop modes → 02 composer mode switch<br>context + snapcompact + cost → 02/01 slim meter</div>
+    <div style="font:400 11px/1.7 ui-monospace,Menlo,monospace;color:#444">model roles ×8 + thinking levels → 05 roles table<br>fallback chains → 05 chain card<br>rules (8 formats) / skills / MCP / extensions → 05 rows<br>hindsight memory → 05 toggle<br>hashline edits → 02 diff cards, hash badge<br>LSP diagnostics → 02 edit-card footer chip<br>remote reach (daemon · tailscale · relay) → 06 pairing</div>
+  </div>
+  <div style="font:400 11px/1.6 -apple-system,system-ui,sans-serif;color:rgba(0,0,0,.5)">From your answers: session-first drawer nav · pinned + list home · inline advisor + inline approvals · composer with slash palette, mode, role picker, mic, attach · iPhone first · Live Activity + lock-screen approvals. My calls (you skipped): subagent hub = tile grid over focused transcript; context meter lives in the session header. Static screens now; tappable prototype after you pick a direction.</div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a><span><b>Signal</b> — terminal-dark. omp.sh black, mono data, signal-orange live state. Densest of the three.</span></div>
+<div style="display:flex;gap:26px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">01 · HOME — SESSIONS</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#060606;position:relative">
+  <div style="padding:64px 18px 12px;display:flex;align-items:center;gap:10px">
+    <div style="width:34px;height:34px;border-radius:9px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font:700 15px ui-monospace,Menlo,monospace;color:#FF6A2B">å</div>
+    <div style="flex:1">
+      <div style="font:700 17px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.02em">Attaché</div>
+      <div style="font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)"><span style="color:#30D158">●</span> devbox · tailscale · 12ms</div>
+    </div>
+    <div style="width:34px;height:34px;border-radius:50%;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:400 22px -apple-system,system-ui,sans-serif;color:#000;padding-bottom:2px">+</div>
+  </div>
+  <div style="margin:2px 18px 14px;height:36px;border-radius:10px;background:#111113;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;padding:0 12px;gap:8px">
+    <svg width="13" height="13" viewBox="0 0 13 13"><circle cx="5.5" cy="5.5" r="4.5" fill="none" stroke="rgba(244,244,242,.35)" stroke-width="1.5"></circle><path d="M9 9l3 3" stroke="rgba(244,244,242,.35)" stroke-width="1.5" stroke-linecap="round"></path></svg>
+    <span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.35)">Search sessions, prompts, files…</span>
+  </div>
+  <div style="padding:0 18px 8px;font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35)">PINNED</div>
+  <div style="margin:0 18px 10px;background:#101012;border:1px solid rgba(255,106,43,.35);border-radius:14px;padding:14px 14px 12px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="width:7px;height:7px;border-radius:50%;background:#FF6A2B;box-shadow:0 0 8px rgba(255,106,43,.8)"></span>
+      <span style="font:600 14.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.01em;flex:1">Fix decoder memory leak</span>
+      <span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF6A2B">RUNNING</span>
+    </div>
+    <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.55);margin-bottom:10px">editing <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">internal/resize/pool.go</span> · turn 14</div>
+    <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.08);margin-bottom:8px"><div style="width:66%;height:100%;border-radius:2px;background:#FF6A2B"></div></div>
+    <div style="display:flex;gap:12px;font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">
+      <span>pixeld</span><span>ctx 66%</span><span>$3.84</span><span style="color:#FF6A2B">2 agents live</span><span style="margin-left:auto">deepseek-v4</span>
+    </div>
+  </div>
+  <div style="margin:0 18px 16px;background:#101012;border:1px solid rgba(255,214,10,.3);border-radius:14px;padding:14px 14px 12px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="width:7px;height:7px;border-radius:50%;background:#FFD60A"></span>
+      <span style="font:600 14.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.01em;flex:1">Ship usage-based invoicing</span>
+      <span style="font:500 10px ui-monospace,Menlo,monospace;color:#FFD60A">NEEDS YOU</span>
+    </div>
+    <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.55);margin-bottom:8px">plan ready for review · 6 steps · waiting 12m</div>
+    <div style="display:flex;gap:12px;font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">
+      <span>billing-api</span><span>ctx 31%</span><span>$1.12</span><span style="margin-left:auto">grok-4.5 · plan</span>
+    </div>
+  </div>
+  <div style="padding:0 18px 8px;font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35)">PIXELD — DEVBOX</div>
+  <div style="margin:0 18px;border-radius:12px;background:#0C0C0E;border:1px solid rgba(255,255,255,.06);overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05)">
+      <span style="width:6px;height:6px;border-radius:50%;background:#30D158"></span>
+      <span style="font:400 13.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Batch export presets</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">merged · 2h</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05)">
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(244,244,242,.25)"></span>
+      <span style="font:400 13.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Investigate AVIF encode speed</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">idle · 1d</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px">
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(244,244,242,.25)"></span>
+      <span style="font:400 13.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">⑂ leak fix — alt approach (branch)</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">idle · 3h</span>
+    </div>
+  </div>
+  <div style="padding:14px 18px 8px;font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35)">OMP-WEB — DEVBOX</div>
+  <div style="margin:0 18px;border-radius:12px;background:#0C0C0E;border:1px solid rgba(255,255,255,.06)">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px">
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(244,244,242,.25)"></span>
+      <span style="font:400 13.5px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Docs search relevance pass</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">idle · 2d</span>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">02 · LIVE TURN STREAM</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#060606">
+  <div style="padding:60px 16px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <div style="flex:1">
+        <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;letter-spacing:-.01em">Fix decoder memory leak</div>
+        <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">pixeld · ⑂ fix/resize-pool · turn 14</div>
+      </div>
+      <div style="height:26px;border-radius:7px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 9px;gap:5px">
+        <span style="font:500 10.5px ui-monospace,Menlo,monospace;color:#F4F4F2">deepseek-v4</span>
+        <svg width="7" height="5" viewBox="0 0 7 5"><path d="M1 1l2.5 2.5L6 1" stroke="rgba(244,244,242,.5)" stroke-width="1.4" fill="none" stroke-linecap="round"></path></svg>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding-bottom:9px">
+      <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.08)"><div style="width:66%;height:100%;border-radius:2px;background:#FF6A2B"></div></div>
+      <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">132.4k/200k · $3.84 · compact@85%</span>
+    </div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">
+    <div style="align-self:flex-end;max-width:86%;background:#1E1E22;border-radius:14px 14px 4px 14px;padding:10px 13px;font:400 13px/1.45 -apple-system,system-ui,sans-serif;color:#F4F4F2">Memory climbs ~40MB/min under thumbnail load until OOM. Find the leak in the resize pipeline and prove the fix with pprof.</div>
+    <div style="font:400 13px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.8)">Heap profile points at retained buffers in the resize pool. <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#F4F4F2">sync.Pool</span> keeps every oversized buffer alive — classic unbounded-retention leak. Patching <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#F4F4F2">Put()</span>:</div>
+    <div style="background:#0E0E10;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 11px;display:flex;align-items:center;gap:8px">
+      <span style="font:500 10px ui-monospace,Menlo,monospace;color:#30D158">✓</span>
+      <span style="font:500 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.7);flex:1">search <span style="color:rgba(244,244,242,.4)">bytes.Buffer in internal/</span></span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">14 hits</span>
+      <svg width="8" height="5" viewBox="0 0 8 5"><path d="M1 1l3 3 3-3" stroke="rgba(244,244,242,.35)" stroke-width="1.3" fill="none" stroke-linecap="round"></path></svg>
+    </div>
+    <div style="flex-shrink:0;background:#0E0E10;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid rgba(255,255,255,.06)">
+        <span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF6A2B">±</span>
+        <span style="font:500 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.85);flex:1">edit <span style="color:rgba(244,244,242,.45)">internal/resize/pool.go</span></span>
+        <span style="font:500 10px ui-monospace,Menlo,monospace;color:#30D158">+11</span><span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF453A">−3</span>
+        <span style="font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.3);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:1px 4px">#a3f2</span>
+      </div>
+      <div style="font:400 10.5px/1.6 ui-monospace,Menlo,monospace;padding:8px 0">
+        <div style="padding:0 11px;color:rgba(244,244,242,.5)"> func Put(b *bytes.Buffer) {</div>
+        <div style="padding:0 11px;background:rgba(48,209,88,.1);color:#7CE59E">+  if b.Cap() &gt; maxRetained {</div>
+        <div style="padding:0 11px;background:rgba(48,209,88,.1);color:#7CE59E">+    return // drop oversized bufs</div>
+        <div style="padding:0 11px;background:rgba(48,209,88,.1);color:#7CE59E">+  }</div>
+        <div style="padding:0 11px;color:rgba(244,244,242,.5)">   b.Reset()</div>
+        
+      </div>
+      <div style="display:flex;gap:10px;padding:7px 11px;border-top:1px solid rgba(255,255,255,.06);font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">
+        <span style="color:#30D158">lsp ✓ 0 diagnostics</span><span>gofmt ok</span><span style="margin-left:auto">tap to expand</span>
+      </div>
+    </div>
+    <div style="flex-shrink:0;background:rgba(255,106,43,.07);border:1px solid rgba(255,106,43,.3);border-radius:10px;padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+        <span style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#FF6A2B">◆ ADVISOR</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">grok-4.5 · after turn 13</span>
+      </div>
+      <div style="font:400 12.5px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.85)">Cap fix is right, but <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">Get()</span> callers skip <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">Put()</span> on the error path — the leak just moves. Suggest a defer in <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">renderThumb</span>.</div>
+      <div style="display:flex;gap:14px;margin-top:7px;font:500 11px -apple-system,system-ui,sans-serif">
+        <span style="color:#FF6A2B">Ask agent to address</span><span style="color:rgba(244,244,242,.45)">Dismiss</span>
+      </div>
+    </div>
+    <div style="flex-shrink:0;background:#0E0E10;border:1px solid rgba(255,214,10,.35);border-radius:10px;padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+        <span style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#FFD60A">⚠ APPROVAL</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">destructive · bash</span>
+      </div>
+      <div style="background:#000;border-radius:7px;padding:7px 10px;font:400 11px ui-monospace,Menlo,monospace;color:#F4F4F2;margin-bottom:5px">rm -rf tmp/profiles.old</div>
+      <div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.5);margin-bottom:9px">reason: clear stale pprof baselines before re-comparing</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:500 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.7)">Deny</div>
+        <div style="flex:1.4;height:32px;border-radius:8px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 12px -apple-system,system-ui,sans-serif;color:#000">Allow once</div>
+        <div style="flex:1;height:32px;border-radius:8px;border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:500 12px -apple-system,system-ui,sans-serif;color:#FF6A2B">Always</div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:10px 16px 30px;border-top:1px solid rgba(255,255,255,.08);background:#0A0A0B">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <span style="height:24px;border-radius:6px;background:rgba(255,106,43,.14);border:1px solid rgba(255,106,43,.4);display:flex;align-items:center;padding:0 8px;font:600 10px ui-monospace,Menlo,monospace;color:#FF6A2B">CHAT ▾</span>
+      <span style="height:24px;border-radius:6px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 8px;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6)">@default ▾</span>
+      <span style="height:24px;border-radius:6px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 8px;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6)">/</span>
+      <span style="margin-left:auto;font:400 9.5px ui-monospace,Menlo,monospace;color:#FF6A2B">■ stop turn</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:32px;height:32px;border-radius:9px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font:300 19px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);padding-bottom:2px">+</div>
+      <div style="flex:1;height:38px;border-radius:11px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 13px;gap:8px">
+        <span style="flex:1;font:400 13px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.35)">Message omp…</span>
+        <svg width="12" height="17" viewBox="0 0 12 17"><rect x="3.5" y="1" width="5" height="9" rx="2.5" fill="none" stroke="rgba(244,244,242,.5)" stroke-width="1.4"></rect><path d="M1 8.5a5 5 0 0 0 10 0M6 13.5V16" stroke="rgba(244,244,242,.5)" stroke-width="1.4" fill="none" stroke-linecap="round"></path></svg>
+      </div>
+      <div style="width:32px;height:32px;border-radius:50%;background:#FF6A2B;display:flex;align-items:center;justify-content:center"><svg width="12" height="13" viewBox="0 0 12 13"><path d="M6 12V2M2 6l4-4 4 4" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">03 · SUBAGENT HUB</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#060606">
+  <div style="padding:60px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="flex:1">
+      <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2">Agents</div>
+      <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">fix decoder memory leak · 2 live · 1 done · 1 queued</div>
+    </div>
+    <span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF6A2B">+ dispatch</span>
+  </div>
+  <div style="padding:12px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div style="background:#101012;border:1px solid rgba(255,106,43,.4);border-radius:12px;padding:11px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:6px;height:6px;border-radius:50%;background:#FF6A2B"></span><span style="font:600 12px ui-monospace,Menlo,monospace;color:#F4F4F2;flex:1">explore</span></div>
+      <div style="font:400 11px/1.45 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);height:32px;overflow:hidden">tracing Get() callers across cmd/loadgen…</div>
+      <div style="margin-top:7px;font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">2m14s · 8.1k tok · 12 calls</div>
+    </div>
+    <div style="background:#101012;border:1px solid rgba(255,106,43,.4);border-radius:12px;padding:11px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:6px;height:6px;border-radius:50%;background:#FF6A2B"></span><span style="font:600 12px ui-monospace,Menlo,monospace;color:#F4F4F2;flex:1">reviewer</span></div>
+      <div style="font:400 11px/1.45 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);height:32px;overflow:hidden">reviewing pool.go diff for API breakage</div>
+      <div style="margin-top:7px;font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">41s · 3.3k tok · 4 calls</div>
+    </div>
+    <div style="background:#101012;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px;opacity:.85">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font:600 10px ui-monospace,Menlo,monospace;color:#30D158">✓</span><span style="font:600 12px ui-monospace,Menlo,monospace;color:#F4F4F2;flex:1">librarian</span></div>
+      <div style="font:400 11px/1.45 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);height:32px;overflow:hidden">sync.Pool retention semantics — 3 sources</div>
+      <div style="margin-top:7px;font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">done · 5.9k tok · report ready</div>
+    </div>
+    <div style="background:#101012;border:1px dashed rgba(255,255,255,.14);border-radius:12px;padding:11px;opacity:.7">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:6px;height:6px;border-radius:50%;border:1px solid rgba(244,244,242,.4)"></span><span style="font:600 12px ui-monospace,Menlo,monospace;color:#F4F4F2;flex:1">oracle</span></div>
+      <div style="font:400 11px/1.45 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);height:32px;overflow:hidden">queued: sanity-check pprof methodology</div>
+      <div style="margin-top:7px;font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">waiting on reviewer</div>
+    </div>
+  </div>
+  <div style="margin-top:auto;background:#0C0C0E;border-top:1px solid rgba(255,255,255,.1);border-radius:20px 20px 0 0;padding:10px 16px 26px;box-shadow:0 -12px 30px rgba(0,0,0,.6)">
+    <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.15);margin:0 auto 10px"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="width:6px;height:6px;border-radius:50%;background:#FF6A2B"></span>
+      <span style="font:600 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2;flex:1">reviewer</span>
+      <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4)">agent://7f31 · task model</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px">
+      <div style="background:#111113;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:7px 10px;display:flex;gap:8px;align-items:center">
+        <span style="font:500 9.5px ui-monospace,Menlo,monospace;color:#30D158">✓</span>
+        <span style="font:400 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.65);flex:1">read internal/resize/pool.go</span>
+        <span style="font:400 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.3)">0.4s</span>
+      </div>
+      <div style="font:400 11.5px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.75)">Public API unchanged. One concern: <span style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px">maxRetained</span> is package-private — loadgen tests can't tune it…</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;height:34px;border-radius:9px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 12px;font:400 12px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.35)">Steer reviewer…</div>
+      <div style="width:34px;height:34px;border-radius:9px;background:#FF6A2B;display:flex;align-items:center;justify-content:center"><svg width="11" height="12" viewBox="0 0 12 13"><path d="M6 12V2M2 6l4-4 4 4" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">04 · APPROVALS QUEUE</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#060606">
+  <div style="padding:60px 16px 10px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Approvals <span style="color:#FFD60A">· 3</span></div>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">policy: ask destructive</span>
+    </div>
+    <div style="display:flex;gap:7px;padding:10px 0 2px">
+      <span style="height:24px;border-radius:6px;background:rgba(255,106,43,.14);border:1px solid rgba(255,106,43,.4);display:flex;align-items:center;padding:0 9px;font:500 10.5px ui-monospace,Menlo,monospace;color:#FF6A2B">all 3</span>
+      <span style="height:24px;border-radius:6px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 9px;font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6)">pixeld 2</span>
+      <span style="height:24px;border-radius:6px;background:#141416;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 9px;font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.6)">billing-api 1</span>
+    </div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:11px">
+    <div style="background:#101012;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 13px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+        <span style="font:600 9.5px ui-monospace,Menlo,monospace;color:#FF453A">HIGH · BASH</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);flex:1">pixeld · 40s ago</span>
+      </div>
+      <div style="background:#000;border-radius:7px;padding:7px 10px;font:400 11px ui-monospace,Menlo,monospace;color:#F4F4F2;margin-bottom:6px">rm -rf tmp/profiles.old</div>
+      <div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.5);margin-bottom:9px">clear stale pprof baselines before re-comparing</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:500 11.5px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.7)">Deny</div>
+        <div style="flex:1.4;height:30px;border-radius:8px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#000">Allow once</div>
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:500 11.5px -apple-system,system-ui,sans-serif;color:#FF6A2B">Always</div>
+      </div>
+    </div>
+    <div style="background:#101012;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 13px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+        <span style="font:600 9.5px ui-monospace,Menlo,monospace;color:#FFD60A">MED · WRITE OUTSIDE WORKSPACE</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);flex:1">pixeld · 2m</span>
+      </div>
+      <div style="font:400 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.7);margin-bottom:6px">~/.omp/agent/models.yml</div>
+      <div style="background:#000;border-radius:7px;padding:6px 10px;font:400 10px/1.6 ui-monospace,Menlo,monospace;margin-bottom:9px">
+        <div style="color:#FF7A6B">− vision: grok-4.5:medium</div>
+        <div style="color:#7CE59E">+ vision: grok-4.5:high</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:500 11.5px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.7)">Deny</div>
+        <div style="flex:1.4;height:30px;border-radius:8px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#000">Allow once</div>
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:500 11.5px -apple-system,system-ui,sans-serif;color:#FF6A2B">Always</div>
+      </div>
+    </div>
+    <div style="background:#101012;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 13px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+        <span style="font:600 9.5px ui-monospace,Menlo,monospace;color:#30D158">LOW · MCP</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);flex:1">billing-api · 12m</span>
+      </div>
+      <div style="font:400 11.5px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.75);margin-bottom:9px"><span style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#F4F4F2">github.create_pr</span> — "invoicing: metered usage rollups" → base main, draft</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:500 11.5px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.7)">Deny</div>
+        <div style="flex:1.4;height:30px;border-radius:8px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#000">Allow once</div>
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:500 11.5px -apple-system,system-ui,sans-serif;color:#FF6A2B">Always</div>
+      </div>
+    </div>
+    <div style="text-align:center;font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">answers sync to the TUI instantly · <span style="color:#FF6A2B">edit policy</span></div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">05 · ROLES & SETTINGS</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#060606">
+  <div style="padding:60px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Models & settings</div>
+    <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">global profile</span>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px">
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35);margin-bottom:7px">MODEL ROLES</div>
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;margin-bottom:12px">
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="width:74px;font:500 10px ui-monospace,Menlo,monospace;color:#FF6A2B">default</span><span style="flex:1;font:400 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2">deepseek-v4-flash</span><span style="font:500 9px ui-monospace,Menlo,monospace;color:#FF6A2B;border:1px solid rgba(255,106,43,.45);border-radius:5px;padding:2px 6px">max</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="width:74px;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">plan</span><span style="flex:1;font:400 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2">grok-4.5</span><span style="font:500 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.55);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:2px 6px">high</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="width:74px;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">slow</span><span style="flex:1;font:400 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2">claude-opus-4.6</span><span style="font:500 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.55);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:2px 6px">xhigh</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="width:74px;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">task</span><span style="flex:1;font:400 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2">deepseek-v4-flash</span><span style="font:500 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.55);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:2px 6px">medium</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="width:74px;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">smol</span><span style="flex:1;font:400 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2">deepseek-v4-flash</span><span style="font:500 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.55);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:2px 6px">low</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="width:74px;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">vision</span><span style="flex:1;font:400 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2">grok-4.5</span><span style="font:500 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.55);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:2px 6px">medium</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="width:74px;font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">designer</span><span style="flex:1;font:400 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2">claude-sonnet-4.5</span><span style="font:500 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.55);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:2px 6px">high</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px"><span style="width:74px;font:500 10px ui-monospace,Menlo,monospace;color:#FFD60A">advisor</span><span style="flex:1;font:400 12.5px ui-monospace,Menlo,monospace;color:#F4F4F2">grok-4.5</span><span style="font:500 9px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.55);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:2px 6px">high</span></div>
+    </div>
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35);margin-bottom:7px">FALLBACK CHAIN — DEFAULT</div>
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:11px 13px;margin-bottom:12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+      <span style="font:500 10.5px ui-monospace,Menlo,monospace;color:#F4F4F2;background:#17171A;border:1px solid rgba(255,106,43,.45);border-radius:6px;padding:4px 8px">deepseek-v4-flash</span>
+      <span style="color:rgba(244,244,242,.35);font:400 11px ui-monospace,Menlo,monospace">→</span>
+      <span style="font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.7);background:#17171A;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:4px 8px">nemotron-3-ultra</span>
+      <span style="color:rgba(244,244,242,.35);font:400 11px ui-monospace,Menlo,monospace">→</span>
+      <span style="font:500 10.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.7);background:#17171A;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:4px 8px">glm-5.2</span>
+      <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35);width:100%">on 429 / quota — session never dies</span>
+    </div>
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35);margin-bottom:7px">BEHAVIOR</div>
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden">
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05)">
+        <span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Approval mode</span>
+        <div style="display:flex;background:#000;border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:2px">
+          <span style="font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45);padding:3px 8px">yolo</span>
+          <span style="font:600 10px ui-monospace,Menlo,monospace;color:#000;background:#FF6A2B;border-radius:5px;padding:3px 8px">ask destr.</span>
+          <span style="font:500 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45);padding:3px 8px">ask all</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Hindsight memory</span><div style="width:40px;height:24px;border-radius:12px;background:#FF6A2B;position:relative"><div style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:#000"></div></div></div>
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Snapcompact</span><span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5)">auto @ 85%</span></div>
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Rules</span><span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5)">12 · from 4 formats ▸</span></div>
+      <div style="display:flex;align-items:center;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">MCP servers</span><span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5)">3 connected ▸</span></div>
+      <div style="display:flex;align-items:center;padding:10px 13px"><span style="flex:1;font:400 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Skills & extensions</span><span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.5)">7 · 5 ▸</span></div>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">06 · PAIRING</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#060606">
+  <div style="padding:60px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#FF6A2B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="font:600 15px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">Machines</div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:14px 16px">
+    <div style="background:#101012;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;margin-bottom:12px">
+      <div style="font:600 14px -apple-system,system-ui,sans-serif;color:#F4F4F2;margin-bottom:4px">Pair a machine</div>
+      <div style="font:400 11.5px/1.5 -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.5);margin-bottom:12px">On the machine running omp:</div>
+      <div style="background:#000;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:10px 12px;display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="font:400 12px ui-monospace,Menlo,monospace;color:#F4F4F2;flex:1"><span style="color:rgba(244,244,242,.4)">$</span> omp serve --pair</span>
+        <span style="font:500 9.5px ui-monospace,Menlo,monospace;color:#FF6A2B;border:1px solid rgba(255,106,43,.45);border-radius:5px;padding:2px 7px">copy</span>
+      </div>
+      <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);margin-bottom:8px;letter-spacing:.08em">THEN ENTER THE CODE IT PRINTS</div>
+      <div style="display:flex;gap:7px;margin-bottom:12px">
+        <div style="flex:1;height:46px;border-radius:9px;background:#000;border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:600 18px ui-monospace,Menlo,monospace;color:#F4F4F2">K7</div>
+        <div style="flex:1;height:46px;border-radius:9px;background:#000;border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:600 18px ui-monospace,Menlo,monospace;color:#F4F4F2">4F</div>
+        <div style="flex:1;height:46px;border-radius:9px;background:#000;border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font:600 18px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.25)">··</div>
+        <div style="flex:1;height:46px;border-radius:9px;background:#000;border:1px solid rgba(255,255,255,.12)"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1;height:1px;background:rgba(255,255,255,.08)"></div>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35)">or</span>
+        <div style="flex:1;height:1px;background:rgba(255,255,255,.08)"></div>
+      </div>
+      <div style="margin-top:12px;height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="4.5" height="4.5" fill="none" stroke="rgba(244,244,242,.7)" stroke-width="1.3"></rect><rect x="8.5" y="1" width="4.5" height="4.5" fill="none" stroke="rgba(244,244,242,.7)" stroke-width="1.3"></rect><rect x="1" y="8.5" width="4.5" height="4.5" fill="none" stroke="rgba(244,244,242,.7)" stroke-width="1.3"></rect><rect x="8.5" y="8.5" width="2" height="2" fill="rgba(244,244,242,.7)"></rect><rect x="11" y="11" width="2" height="2" fill="rgba(244,244,242,.7)"></rect></svg>
+        <span style="font:500 12.5px -apple-system,system-ui,sans-serif;color:#F4F4F2">Scan QR from terminal</span>
+      </div>
+    </div>
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:rgba(244,244,242,.35);margin-bottom:7px">PAIRED</div>
+    <div style="background:#0C0C0E;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;margin-bottom:10px">
+      <div style="padding:12px 13px;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#30D158"></span>
+          <span style="font:600 13px -apple-system,system-ui,sans-serif;color:#F4F4F2;flex:1">devbox</span>
+          <span style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.45)">2 sessions live</span>
+        </div>
+        <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);padding-left:15px">tailscale · 12ms · omp 0.9.4 · bun 1.3.14</div>
+      </div>
+      <div style="padding:12px 13px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="width:7px;height:7px;border-radius:50%;background:rgba(244,244,242,.25)"></span>
+          <span style="font:600 13px -apple-system,system-ui,sans-serif;color:rgba(244,244,242,.6);flex:1">build-01</span>
+          <span style="font:500 10px ui-monospace,Menlo,monospace;color:#FF6A2B;border:1px solid rgba(255,106,43,.45);border-radius:5px;padding:2px 7px">wake</span>
+        </div>
+        <div style="font:400 10px ui-monospace,Menlo,monospace;color:rgba(244,244,242,.4);padding-left:15px">ssh relay · asleep 3h · wake-on-lan ready</div>
+      </div>
+    </div>
+    <div style="font:400 10px/1.6 ui-monospace,Menlo,monospace;color:rgba(244,244,242,.35);text-align:center">device-key E2E · relay stores nothing · revoke anytime</div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">07 · SYSTEM SURFACES — LOCK SCREEN + ISLAND</div>
+<div style="display:flex;gap:18px;align-items:flex-start">
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:radial-gradient(120% 90% at 50% 0%,#26262b 0%,#0a0a0c 55%,#000 100%)">
+  <div style="text-align:center;padding-top:78px">
+    <div style="font:500 15px -apple-system,system-ui,sans-serif;color:rgba(255,255,255,.85)">Saturday, August 29</div>
+    <div style="font:200 84px/1 -apple-system,system-ui,sans-serif;color:#fff;letter-spacing:-.02em;margin-top:2px">9:41</div>
+  </div>
+  <div style="margin:26px 14px 0;border-radius:20px;background:rgba(30,30,34,.72);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);padding:13px 14px">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+      <div style="width:30px;height:30px;border-radius:8px;background:#000;border:1px solid rgba(255,106,43,.6);display:flex;align-items:center;justify-content:center;font:700 13px ui-monospace,Menlo,monospace;color:#FF6A2B">å</div>
+      <div style="flex:1">
+        <div style="font:600 13px -apple-system,system-ui,sans-serif;color:#fff">Attaché · approval needed</div>
+        <div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(255,255,255,.55)">pixeld — fix decoder memory leak</div>
+      </div>
+      <span style="font:400 10.5px -apple-system,system-ui,sans-serif;color:rgba(255,255,255,.45)">now</span>
+    </div>
+    <div style="background:rgba(0,0,0,.55);border-radius:8px;padding:7px 10px;font:400 11px ui-monospace,Menlo,monospace;color:#fff;margin-bottom:9px">rm -rf tmp/profiles.old</div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;height:32px;border-radius:9px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font:500 12.5px -apple-system,system-ui,sans-serif;color:#fff">Deny</div>
+      <div style="flex:1;height:32px;border-radius:9px;background:#FF6A2B;display:flex;align-items:center;justify-content:center;font:600 12.5px -apple-system,system-ui,sans-serif;color:#000">Allow once</div>
+    </div>
+  </div>
+  <div style="margin:auto 14px 76px;border-radius:22px;background:rgba(16,16,18,.85);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);padding:12px 14px">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+      <div style="width:26px;height:26px;border-radius:7px;background:#000;border:1px solid rgba(255,106,43,.6);display:flex;align-items:center;justify-content:center;font:700 12px ui-monospace,Menlo,monospace;color:#FF6A2B">å</div>
+      <span style="font:600 12.5px -apple-system,system-ui,sans-serif;color:#fff;flex:1">pixeld · running</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:#FF6A2B">turn 14 · 18m</span>
+    </div>
+    <div style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.6);margin-bottom:8px">▸ bash — go test ./internal/resize -memprofile</div>
+    <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.12)"><div style="width:66%;height:100%;border-radius:2px;background:#FF6A2B"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.4)"><span>ctx 66% · $3.84</span><span>2 agents · advisor quiet</span></div>
+  </div>
+</div>
+</x-import>
+<div style="display:flex;flex-direction:column;gap:12px;width:270px;padding-top:8px">
+  <div style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">DYNAMIC ISLAND STATES</div>
+  <div style="background:#1a1a1c;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px">
+    <div style="font:400 9px ui-monospace,Menlo,monospace;color:#8a8782">compact — session running</div>
+    <div style="align-self:center;width:190px;height:37px;border-radius:24px;background:#000;display:flex;align-items:center;padding:0 14px;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.5)">
+      <span style="font:700 11px ui-monospace,Menlo,monospace;color:#FF6A2B">å</span>
+      <span style="flex:1"></span>
+      <span style="width:7px;height:7px;border-radius:50%;background:#FF6A2B"></span>
+      <span style="font:500 10px ui-monospace,Menlo,monospace;color:#fff">T14</span>
+    </div>
+    <div style="font:400 9px ui-monospace,Menlo,monospace;color:#8a8782">expanded — long-press</div>
+    <div style="align-self:center;width:240px;border-radius:30px;background:#000;padding:14px 16px;box-shadow:0 6px 18px rgba(0,0,0,.5)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font:700 12px ui-monospace,Menlo,monospace;color:#FF6A2B">å</span>
+        <span style="font:600 11.5px -apple-system,system-ui,sans-serif;color:#fff;flex:1">fix decoder leak</span>
+        <span style="font:400 9px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.5)">18m</span>
+      </div>
+      <div style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.55);margin-bottom:8px">▸ bash — go test ./internal/resize</div>
+      <div style="height:2.5px;border-radius:2px;background:rgba(255,255,255,.14);margin-bottom:9px"><div style="width:66%;height:100%;background:#FF6A2B;border-radius:2px"></div></div>
+      <div style="height:28px;border-radius:14px;background:rgba(255,106,43,.16);border:1px solid rgba(255,106,43,.5);display:flex;align-items:center;justify-content:center;font:600 10.5px -apple-system,system-ui,sans-serif;color:#FF6A2B">1 approval waiting</div>
+    </div>
+    <div style="font:400 9px ui-monospace,Menlo,monospace;color:#8a8782">idle — all sessions parked</div>
+    <div style="align-self:center;width:126px;height:37px;border-radius:24px;background:#000;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 14px rgba(0,0,0,.5)">
+      <span style="font:700 11px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.4)">å</span>
+      <span style="width:6px;height:6px;border-radius:50%;background:#30D158"></span>
+    </div>
+  </div>
+  <div style="font:400 10px/1.6 -apple-system,system-ui,sans-serif;color:#8a8782">Live Activity carries turn number, current tool, context %, cost, agent count. Tapping the approval chip deep-links into the stream at the pending card.</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a><span><b>Cupertino</b> — iOS-native light, stock feel. Grouped inset lists, system blue, SF large titles. Feels like Settings met Xcode.</span></div>
+<div style="display:flex;gap:26px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">01 · HOME — SESSIONS</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F2F2F7;position:relative">
+  <div style="padding:64px 20px 6px;display:flex;align-items:flex-end;justify-content:space-between">
+    <div>
+      <div style="font:700 34px -apple-system,system-ui,sans-serif;color:#000;letter-spacing:.3px">Sessions</div>
+      <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-top:2px"><span style="color:#34C759">●</span> devbox · Tailscale · 12 ms</div>
+    </div>
+    <div style="width:38px;height:38px;border-radius:50%;background:#007AFF;display:flex;align-items:center;justify-content:center;font:300 24px -apple-system,system-ui,sans-serif;color:#fff;padding-bottom:2px;box-shadow:0 2px 8px rgba(0,122,255,.3)">+</div>
+  </div>
+  <div style="margin:10px 20px 14px;height:36px;border-radius:10px;background:rgba(118,118,128,.12);display:flex;align-items:center;padding:0 10px;gap:7px">
+    <svg width="14" height="14" viewBox="0 0 13 13"><circle cx="5.5" cy="5.5" r="4.5" fill="none" stroke="rgba(60,60,67,.6)" stroke-width="1.5"></circle><path d="M9 9l3 3" stroke="rgba(60,60,67,.6)" stroke-width="1.5" stroke-linecap="round"></path></svg>
+    <span style="font:400 16px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">Search</span>
+  </div>
+  <div style="padding:0 20px 7px;font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);text-transform:uppercase;letter-spacing:-.08px">Pinned</div>
+  <div style="margin:0 16px 10px;background:#fff;border-radius:18px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="width:8px;height:8px;border-radius:50%;background:#34C759"></span>
+      <span style="font:600 16px -apple-system,system-ui,sans-serif;color:#000;letter-spacing:-.3px;flex:1">Fix decoder memory leak</span>
+      <span style="font:600 11px -apple-system,system-ui,sans-serif;color:#34C759">Running</span>
+    </div>
+    <div style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-bottom:10px">Editing <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px">pool.go</span> · turn 14 · 2 agents live</div>
+    <div style="height:4px;border-radius:2px;background:rgba(118,118,128,.16);margin-bottom:8px"><div style="width:66%;height:100%;border-radius:2px;background:#007AFF"></div></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font:500 11px -apple-system,system-ui,sans-serif;color:#007AFF;background:rgba(0,122,255,.1);border-radius:6px;padding:2px 7px">pixeld</span>
+      <span style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">Context 66% · $3.84</span>
+      <span style="margin-left:auto;font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">deepseek-v4</span>
+    </div>
+  </div>
+  <div style="margin:0 16px 16px;background:#fff;border-radius:18px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="width:8px;height:8px;border-radius:50%;background:#FF9500"></span>
+      <span style="font:600 16px -apple-system,system-ui,sans-serif;color:#000;letter-spacing:-.3px;flex:1">Ship usage-based invoicing</span>
+      <span style="font:600 11px -apple-system,system-ui,sans-serif;color:#FF9500">Needs you</span>
+    </div>
+    <div style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-bottom:8px">Plan ready for review · 6 steps · waiting 12 min</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font:500 11px -apple-system,system-ui,sans-serif;color:#5856D6;background:rgba(88,86,214,.1);border-radius:6px;padding:2px 7px">billing-api</span>
+      <span style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">Context 31% · $1.12</span>
+      <span style="margin-left:auto;font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">grok-4.5 · plan</span>
+    </div>
+  </div>
+  <div style="padding:0 20px 7px;font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);text-transform:uppercase;letter-spacing:-.08px">pixeld — devbox</div>
+  <div style="margin:0 16px;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;position:relative">
+      <span style="width:7px;height:7px;border-radius:50%;background:#34C759"></span>
+      <span style="font:400 15px -apple-system,system-ui,sans-serif;color:#000;flex:1;letter-spacing:-.3px">Batch export presets</span>
+      <span style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">2h</span>
+      <svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <div style="position:absolute;bottom:0;left:33px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;position:relative">
+      <span style="width:7px;height:7px;border-radius:50%;background:rgba(60,60,67,.25)"></span>
+      <span style="font:400 15px -apple-system,system-ui,sans-serif;color:#000;flex:1;letter-spacing:-.3px">Investigate AVIF encode speed</span>
+      <span style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">1d</span>
+      <svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <div style="position:absolute;bottom:0;left:33px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px">
+      <span style="width:7px;height:7px;border-radius:50%;background:rgba(60,60,67,.25)"></span>
+      <span style="font:400 15px -apple-system,system-ui,sans-serif;color:#000;flex:1;letter-spacing:-.3px">⑂ Leak fix — alt approach</span>
+      <span style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">3h</span>
+      <svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </div>
+  </div>
+  <div style="padding:14px 20px 7px;font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);text-transform:uppercase;letter-spacing:-.08px">omp-web — devbox</div>
+  <div style="margin:0 16px;background:#fff;border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px">
+      <span style="width:7px;height:7px;border-radius:50%;background:rgba(60,60,67,.25)"></span>
+      <span style="font:400 15px -apple-system,system-ui,sans-serif;color:#000;flex:1;letter-spacing:-.3px">Docs search relevance pass</span>
+      <span style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">2d</span>
+      <svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">02 · LIVE TURN STREAM</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F2F2F7">
+  <div style="padding:58px 16px 0;background:rgba(242,242,247,.94);border-bottom:.5px solid rgba(60,60,67,.16)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+      <svg width="11" height="19" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#007AFF" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <div style="flex:1;text-align:center">
+        <div style="font:600 16px -apple-system,system-ui,sans-serif;color:#000;letter-spacing:-.3px">Fix decoder memory leak</div>
+        <div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">pixeld · ⑂ fix/resize-pool · turn 14</div>
+      </div>
+      <span style="font:500 12px -apple-system,system-ui,sans-serif;color:#007AFF;background:rgba(0,122,255,.1);border-radius:14px;padding:4px 10px">deepseek ▾</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding-bottom:8px">
+      <div style="flex:1;height:3.5px;border-radius:2px;background:rgba(118,118,128,.16)"><div style="width:66%;height:100%;border-radius:2px;background:#007AFF"></div></div>
+      <span style="font:400 10.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">132.4k of 200k · $3.84</span>
+    </div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">
+    <div style="align-self:flex-end;max-width:86%;background:#007AFF;border-radius:18px 18px 5px 18px;padding:10px 14px;font:400 14.5px/1.4 -apple-system,system-ui,sans-serif;color:#fff;letter-spacing:-.2px">Memory climbs ~40MB/min under thumbnail load until OOM. Find the leak in the resize pipeline and prove the fix with pprof.</div>
+    <div style="font:400 14.5px/1.45 -apple-system,system-ui,sans-serif;color:#000;letter-spacing:-.2px">Heap profile points at retained buffers in the resize pool — <span style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:rgba(118,118,128,.12);border-radius:4px;padding:1px 4px">sync.Pool</span> keeps oversized buffers alive. Patching <span style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:rgba(118,118,128,.12);border-radius:4px;padding:1px 4px">Put()</span>:</div>
+    <div style="flex-shrink:0;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:.5px solid rgba(60,60,67,.12)">
+        <div style="width:26px;height:26px;border-radius:7px;background:#007AFF;display:flex;align-items:center;justify-content:center;font:600 13px ui-monospace,Menlo,monospace;color:#fff">±</div>
+        <div style="flex:1"><div style="font:500 13px -apple-system,system-ui,sans-serif;color:#000">Edit <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">pool.go</span></div><div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)"><span style="color:#34C759">+11</span> <span style="color:#FF3B30">−3</span> · hashline #a3f2</div></div>
+        <svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+      <div style="font:400 11px/1.5 ui-monospace,Menlo,monospace;padding:6px 0;background:#FBFBFD">
+        <div style="padding:0 12px;color:rgba(60,60,67,.7)"> func Put(b *bytes.Buffer) {</div>
+        <div style="padding:0 12px;background:rgba(52,199,89,.14);color:#1F7A34">+  if b.Cap() &gt; maxRetained {</div>
+        <div style="padding:0 12px;background:rgba(52,199,89,.14);color:#1F7A34">+    return // drop oversized bufs</div>
+        <div style="padding:0 12px;background:rgba(52,199,89,.14);color:#1F7A34">+  }</div>
+        
+      </div>
+      <div style="display:flex;gap:10px;padding:7px 12px;border-top:.5px solid rgba(60,60,67,.12);font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">
+        <span style="color:#34C759">✓ LSP clean</span><span>gofmt ok</span><span style="margin-left:auto;color:#007AFF">Expand</span>
+      </div>
+    </div>
+    <div style="flex-shrink:0;background:#fff;border-radius:14px;padding:11px 12px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+        <div style="width:26px;height:26px;border-radius:7px;background:#5856D6;display:flex;align-items:center;justify-content:center;font:700 13px -apple-system,system-ui,sans-serif;color:#fff">A</div>
+        <div style="flex:1"><span style="font:600 13px -apple-system,system-ui,sans-serif;color:#5856D6">Advisor</span> <span style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">grok-4.5 · after turn 13</span></div>
+      </div>
+      <div style="font:400 13.5px/1.45 -apple-system,system-ui,sans-serif;color:#000;letter-spacing:-.2px;margin-bottom:8px">Cap fix is right, but <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">Get()</span> callers skip <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">Put()</span> on the error path — the leak just moves. Suggest a defer in <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">renderThumb</span>.</div>
+      <div style="display:flex;gap:8px">
+        <span style="flex:1;height:30px;border-radius:15px;background:rgba(88,86,214,.12);display:flex;align-items:center;justify-content:center;font:600 12.5px -apple-system,system-ui,sans-serif;color:#5856D6">Ask agent to address</span>
+        <span style="width:90px;height:30px;border-radius:15px;background:rgba(118,118,128,.12);display:flex;align-items:center;justify-content:center;font:500 12.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.7)">Dismiss</span>
+      </div>
+    </div>
+    <div style="flex-shrink:0;background:#fff;border-radius:14px;padding:11px 12px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+        <div style="width:26px;height:26px;border-radius:7px;background:#FF9500;display:flex;align-items:center;justify-content:center;font:700 14px -apple-system,system-ui,sans-serif;color:#fff">!</div>
+        <div style="flex:1"><span style="font:600 13px -apple-system,system-ui,sans-serif;color:#000">Approval required</span> <span style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">destructive · bash</span></div>
+      </div>
+      <div style="background:rgba(118,118,128,.12);border-radius:8px;padding:8px 11px;font:400 12px ui-monospace,Menlo,monospace;color:#000;margin-bottom:5px">rm -rf tmp/profiles.old</div>
+      <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-bottom:9px">Reason: clear stale pprof baselines before re-comparing</div>
+      <div style="display:flex;gap:8px">
+        <span style="flex:1;height:32px;border-radius:16px;background:rgba(118,118,128,.12);display:flex;align-items:center;justify-content:center;font:500 13px -apple-system,system-ui,sans-serif;color:#FF3B30">Deny</span>
+        <span style="flex:1.4;height:32px;border-radius:16px;background:#007AFF;display:flex;align-items:center;justify-content:center;font:600 13px -apple-system,system-ui,sans-serif;color:#fff">Allow once</span>
+        <span style="flex:1;height:32px;border-radius:16px;background:rgba(0,122,255,.1);display:flex;align-items:center;justify-content:center;font:500 13px -apple-system,system-ui,sans-serif;color:#007AFF">Always</span>
+      </div>
+    </div>
+  </div>
+  <div style="padding:9px 16px 28px;background:rgba(242,242,247,.94);border-top:.5px solid rgba(60,60,67,.16)">
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+      <span style="height:26px;border-radius:13px;background:rgba(0,122,255,.1);display:flex;align-items:center;padding:0 11px;font:600 12px -apple-system,system-ui,sans-serif;color:#007AFF">Chat ▾</span>
+      <span style="height:26px;border-radius:13px;background:rgba(118,118,128,.12);display:flex;align-items:center;padding:0 11px;font:500 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.7)">@default ▾</span>
+      <span style="height:26px;width:26px;border-radius:13px;background:rgba(118,118,128,.12);display:flex;align-items:center;justify-content:center;font:500 13px ui-monospace,Menlo,monospace;color:rgba(60,60,67,.7)">/</span>
+      <span style="margin-left:auto;font:500 12px -apple-system,system-ui,sans-serif;color:#FF3B30">■ Stop</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:34px;height:34px;border-radius:50%;background:rgba(118,118,128,.12);display:flex;align-items:center;justify-content:center;font:300 22px -apple-system,system-ui,sans-serif;color:#007AFF;padding-bottom:2px">+</div>
+      <div style="flex:1;height:38px;border-radius:19px;background:#fff;border:.5px solid rgba(60,60,67,.2);display:flex;align-items:center;padding:0 14px;gap:8px">
+        <span style="flex:1;font:400 14.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.45)">Message omp…</span>
+        <svg width="13" height="18" viewBox="0 0 12 17"><rect x="3.5" y="1" width="5" height="9" rx="2.5" fill="none" stroke="#007AFF" stroke-width="1.4"></rect><path d="M1 8.5a5 5 0 0 0 10 0M6 13.5V16" stroke="#007AFF" stroke-width="1.4" fill="none" stroke-linecap="round"></path></svg>
+      </div>
+      <div style="width:34px;height:34px;border-radius:50%;background:#007AFF;display:flex;align-items:center;justify-content:center"><svg width="12" height="13" viewBox="0 0 12 13"><path d="M6 12V2M2 6l4-4 4 4" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">03 · SUBAGENT HUB</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F2F2F7">
+  <div style="padding:58px 16px 9px;display:flex;align-items:center;gap:8px;background:rgba(242,242,247,.94);border-bottom:.5px solid rgba(60,60,67,.16)">
+    <svg width="11" height="19" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#007AFF" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="flex:1;text-align:center">
+      <div style="font:600 16px -apple-system,system-ui,sans-serif;color:#000;letter-spacing:-.3px">Agents</div>
+      <div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">2 live · 1 done · 1 queued</div>
+    </div>
+    <span style="font:400 15px -apple-system,system-ui,sans-serif;color:#007AFF">Dispatch</span>
+  </div>
+  <div style="padding:12px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div style="background:#fff;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,.04);outline:2px solid rgba(52,199,89,.5)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:7px;height:7px;border-radius:50%;background:#34C759"></span><span style="font:600 13.5px -apple-system,system-ui,sans-serif;color:#000;flex:1;letter-spacing:-.2px">explore</span></div>
+      <div style="font:400 12px/1.4 -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.7);height:34px;overflow:hidden">Tracing Get() callers across cmd/loadgen…</div>
+      <div style="margin-top:7px;font:400 10.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.5)">2m 14s · 8.1k tok · 12 calls</div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,.04);outline:2px solid rgba(52,199,89,.5)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:7px;height:7px;border-radius:50%;background:#34C759"></span><span style="font:600 13.5px -apple-system,system-ui,sans-serif;color:#000;flex:1;letter-spacing:-.2px">reviewer</span></div>
+      <div style="font:400 12px/1.4 -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.7);height:34px;overflow:hidden">Reviewing pool.go diff for API breakage</div>
+      <div style="margin-top:7px;font:400 10.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.5)">41s · 3.3k tok · 4 calls</div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font:600 11px -apple-system,system-ui,sans-serif;color:#34C759">✓</span><span style="font:600 13.5px -apple-system,system-ui,sans-serif;color:#000;flex:1;letter-spacing:-.2px">librarian</span></div>
+      <div style="font:400 12px/1.4 -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.7);height:34px;overflow:hidden">sync.Pool retention semantics — 3 sources</div>
+      <div style="margin-top:7px;font:400 10.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.5)">Done · 5.9k tok · report ready</div>
+    </div>
+    <div style="background:rgba(255,255,255,.6);border:1.5px dashed rgba(60,60,67,.2);border-radius:16px;padding:12px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:7px;height:7px;border-radius:50%;border:1.5px solid rgba(60,60,67,.35)"></span><span style="font:600 13.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.7);flex:1;letter-spacing:-.2px">oracle</span></div>
+      <div style="font:400 12px/1.4 -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.55);height:34px;overflow:hidden">Queued: sanity-check pprof methodology</div>
+      <div style="margin-top:7px;font:400 10.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.45)">Waiting on reviewer</div>
+    </div>
+  </div>
+  <div style="margin-top:auto;background:#fff;border-radius:16px 16px 0 0;padding:9px 16px 26px;box-shadow:0 -4px 24px rgba(0,0,0,.08)">
+    <div style="width:36px;height:5px;border-radius:3px;background:rgba(60,60,67,.2);margin:0 auto 10px"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <span style="width:7px;height:7px;border-radius:50%;background:#34C759"></span>
+      <span style="font:600 15px -apple-system,system-ui,sans-serif;color:#000;flex:1;letter-spacing:-.3px">reviewer</span>
+      <span style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(60,60,67,.5)">agent://7f31</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px">
+      <div style="background:#F2F2F7;border-radius:10px;padding:8px 11px;display:flex;gap:8px;align-items:center">
+        <span style="font:600 10px -apple-system,system-ui,sans-serif;color:#34C759">✓</span>
+        <span style="font:400 11.5px ui-monospace,Menlo,monospace;color:rgba(60,60,67,.75);flex:1">read internal/resize/pool.go</span>
+        <span style="font:400 10px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.45)">0.4s</span>
+      </div>
+      <div style="font:400 13px/1.45 -apple-system,system-ui,sans-serif;color:#000;letter-spacing:-.2px">Public API unchanged. One concern: <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">maxRetained</span> is package-private — loadgen tests can't tune it…</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;height:36px;border-radius:18px;background:#F2F2F7;border:.5px solid rgba(60,60,67,.2);display:flex;align-items:center;padding:0 13px;font:400 13.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.45)">Steer reviewer…</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:#007AFF;display:flex;align-items:center;justify-content:center"><svg width="12" height="13" viewBox="0 0 12 13"><path d="M6 12V2M2 6l4-4 4 4" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">04 · APPROVALS QUEUE</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F2F2F7">
+  <div style="padding:64px 20px 6px;display:flex;align-items:flex-end;justify-content:space-between">
+    <div style="font:700 34px -apple-system,system-ui,sans-serif;color:#000;letter-spacing:.3px">Approvals <span style="font:600 15px -apple-system,system-ui,sans-serif;color:#fff;background:#FF3B30;border-radius:12px;padding:2px 9px;vertical-align:6px">3</span></div>
+    <span style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);padding-bottom:6px">Ask destructive</span>
+  </div>
+  <div style="margin:8px 16px 12px;display:flex;background:rgba(118,118,128,.12);border-radius:9px;padding:2px">
+    <span style="flex:1;height:28px;border-radius:7px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;font:600 13px -apple-system,system-ui,sans-serif;color:#000">All</span>
+    <span style="flex:1;height:28px;display:flex;align-items:center;justify-content:center;font:400 13px -apple-system,system-ui,sans-serif;color:#000">pixeld</span>
+    <span style="flex:1;height:28px;display:flex;align-items:center;justify-content:center;font:400 13px -apple-system,system-ui,sans-serif;color:#000">billing-api</span>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:0 16px;display:flex;flex-direction:column;gap:11px">
+    <div style="background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:7px;background:#FF3B30;display:flex;align-items:center;justify-content:center;font:600 12px ui-monospace,Menlo,monospace;color:#fff">$</div>
+        <div style="flex:1"><div style="font:600 13.5px -apple-system,system-ui,sans-serif;color:#000">Shell command <span style="font:600 10px -apple-system,system-ui,sans-serif;color:#FF3B30;background:rgba(255,59,48,.1);border-radius:5px;padding:2px 6px;margin-left:4px">HIGH</span></div><div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">pixeld · 40s ago</div></div>
+      </div>
+      <div style="background:rgba(118,118,128,.12);border-radius:8px;padding:8px 11px;font:400 12px ui-monospace,Menlo,monospace;color:#000;margin-bottom:5px">rm -rf tmp/profiles.old</div>
+      <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-bottom:9px">Clear stale pprof baselines before re-comparing</div>
+      <div style="display:flex;gap:8px">
+        <span style="flex:1;height:32px;border-radius:16px;background:rgba(118,118,128,.12);display:flex;align-items:center;justify-content:center;font:500 13px -apple-system,system-ui,sans-serif;color:#FF3B30">Deny</span>
+        <span style="flex:1.4;height:32px;border-radius:16px;background:#007AFF;display:flex;align-items:center;justify-content:center;font:600 13px -apple-system,system-ui,sans-serif;color:#fff">Allow once</span>
+        <span style="flex:1;height:32px;border-radius:16px;background:rgba(0,122,255,.1);display:flex;align-items:center;justify-content:center;font:500 13px -apple-system,system-ui,sans-serif;color:#007AFF">Always</span>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:7px;background:#FF9500;display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 13 13"><path d="M2 11h9M3.5 8.5L9 3a1.4 1.4 0 0 1 2 2L5.5 10.5 2.5 11z" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+        <div style="flex:1"><div style="font:600 13.5px -apple-system,system-ui,sans-serif;color:#000">Write outside workspace <span style="font:600 10px -apple-system,system-ui,sans-serif;color:#FF9500;background:rgba(255,149,0,.12);border-radius:5px;padding:2px 6px;margin-left:4px">MED</span></div><div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">pixeld · 2m · ~/.omp/agent/models.yml</div></div>
+      </div>
+      <div style="background:#FBFBFD;border:.5px solid rgba(60,60,67,.12);border-radius:8px;padding:6px 11px;font:400 11px/1.6 ui-monospace,Menlo,monospace;margin-bottom:9px">
+        <div style="color:#C7362B">− vision: grok-4.5:medium</div>
+        <div style="color:#1F7A34">+ vision: grok-4.5:high</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <span style="flex:1;height:32px;border-radius:16px;background:rgba(118,118,128,.12);display:flex;align-items:center;justify-content:center;font:500 13px -apple-system,system-ui,sans-serif;color:#FF3B30">Deny</span>
+        <span style="flex:1.4;height:32px;border-radius:16px;background:#007AFF;display:flex;align-items:center;justify-content:center;font:600 13px -apple-system,system-ui,sans-serif;color:#fff">Allow once</span>
+        <span style="flex:1;height:32px;border-radius:16px;background:rgba(0,122,255,.1);display:flex;align-items:center;justify-content:center;font:500 13px -apple-system,system-ui,sans-serif;color:#007AFF">Always</span>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:7px;background:#34C759;display:flex;align-items:center;justify-content:center;font:600 10px -apple-system,system-ui,sans-serif;color:#fff">PR</div>
+        <div style="flex:1"><div style="font:600 13.5px -apple-system,system-ui,sans-serif;color:#000">MCP · github.create_pr <span style="font:600 10px -apple-system,system-ui,sans-serif;color:#34C759;background:rgba(52,199,89,.12);border-radius:5px;padding:2px 6px;margin-left:4px">LOW</span></div><div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">billing-api · 12m</div></div>
+      </div>
+      <div style="font:400 13px -apple-system,system-ui,sans-serif;color:#000;margin-bottom:9px">"invoicing: metered usage rollups" → base <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">main</span>, draft</div>
+      <div style="display:flex;gap:8px">
+        <span style="flex:1;height:32px;border-radius:16px;background:rgba(118,118,128,.12);display:flex;align-items:center;justify-content:center;font:500 13px -apple-system,system-ui,sans-serif;color:#FF3B30">Deny</span>
+        <span style="flex:1.4;height:32px;border-radius:16px;background:#007AFF;display:flex;align-items:center;justify-content:center;font:600 13px -apple-system,system-ui,sans-serif;color:#fff">Allow once</span>
+        <span style="flex:1;height:32px;border-radius:16px;background:rgba(0,122,255,.1);display:flex;align-items:center;justify-content:center;font:500 13px -apple-system,system-ui,sans-serif;color:#007AFF">Always</span>
+      </div>
+    </div>
+    <div style="text-align:center;font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.5)">Answers sync to the TUI instantly · <span style="color:#007AFF">Edit policy</span></div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">05 · ROLES & SETTINGS</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F2F2F7">
+  <div style="padding:64px 20px 10px;font:700 34px -apple-system,system-ui,sans-serif;color:#000;letter-spacing:.3px">Models</div>
+  <div style="flex:1;overflow:hidden">
+    <div style="padding:0 36px 6px;font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);text-transform:uppercase">Model roles</div>
+    <div style="background:#fff;border-radius:18px;margin:0 16px 14px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">default</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">deepseek-v4-flash · max</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div></div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">plan</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">grok-4.5 · high</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div></div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">slow</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">claude-opus-4.6 · xhigh</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div></div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">task</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">deepseek-v4-flash · med</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div></div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">vision</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">grok-4.5 · med</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div></div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#5856D6">advisor</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">grok-4.5 · high</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+    <div style="padding:0 36px 6px;font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);text-transform:uppercase">Fallback chain — default</div>
+    <div style="background:#fff;border-radius:18px;margin:0 16px 4px;padding:12px 16px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <span style="font:500 12px -apple-system,system-ui,sans-serif;color:#007AFF;background:rgba(0,122,255,.1);border-radius:8px;padding:5px 9px">deepseek-v4-flash</span>
+      <span style="color:rgba(60,60,67,.4)">→</span>
+      <span style="font:500 12px -apple-system,system-ui,sans-serif;color:#000;background:rgba(118,118,128,.12);border-radius:8px;padding:5px 9px">nemotron-3-ultra</span>
+      <span style="color:rgba(60,60,67,.4)">→</span>
+      <span style="font:500 12px -apple-system,system-ui,sans-serif;color:#000;background:rgba(118,118,128,.12);border-radius:8px;padding:5px 9px">glm-5.2</span>
+    </div>
+    <div style="padding:2px 36px 12px;font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.5)">Rotates on rate limits so a session never dies.</div>
+    <div style="background:#fff;border-radius:18px;margin:0 16px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative">
+        <span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">Approval mode</span>
+        <div style="display:flex;background:rgba(118,118,128,.12);border-radius:8px;padding:2px">
+          <span style="font:400 12px -apple-system,system-ui,sans-serif;color:#000;padding:4px 9px">Yolo</span>
+          <span style="font:600 12px -apple-system,system-ui,sans-serif;color:#000;background:#fff;border-radius:6px;padding:4px 9px;box-shadow:0 1px 3px rgba(0,0,0,.08)">Destructive</span>
+          <span style="font:400 12px -apple-system,system-ui,sans-serif;color:#000;padding:4px 9px">All</span>
+        </div>
+        <div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div>
+      </div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">Hindsight memory</span><div style="width:44px;height:26px;border-radius:13px;background:#34C759;position:relative"><div style="position:absolute;top:1.5px;right:1.5px;width:23px;height:23px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.15)"></div></div><div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div></div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">Snapcompact</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">Auto at 85%</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div></div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">Rules</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">12 from 4 formats</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div></div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px;position:relative"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">MCP servers</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">3 connected</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div></div>
+      <div style="display:flex;align-items:center;min-height:46px;padding:0 16px"><span style="flex:1;font:400 15px -apple-system,system-ui,sans-serif;color:#000">Skills & extensions</span><span style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-right:6px">7 · 5</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="rgba(60,60,67,.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">06 · PAIRING</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F2F2F7">
+  <div style="padding:64px 20px 10px;font:700 34px -apple-system,system-ui,sans-serif;color:#000;letter-spacing:.3px">Machines</div>
+  <div style="flex:1;overflow:hidden">
+    <div style="background:#fff;border-radius:18px;margin:0 16px 14px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="font:600 17px -apple-system,system-ui,sans-serif;color:#000;letter-spacing:-.3px;margin-bottom:3px">Pair a machine</div>
+      <div style="font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-bottom:12px">On the machine running omp:</div>
+      <div style="background:rgba(118,118,128,.12);border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="font:400 13px ui-monospace,Menlo,monospace;color:#000;flex:1"><span style="color:rgba(60,60,67,.5)">$</span> omp serve --pair</span>
+        <span style="font:600 12px -apple-system,system-ui,sans-serif;color:#007AFF">Copy</span>
+      </div>
+      <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);margin-bottom:8px">Then enter the code it prints</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <div style="flex:1;height:48px;border-radius:11px;background:#F2F2F7;border:1.5px solid #007AFF;display:flex;align-items:center;justify-content:center;font:600 19px ui-monospace,Menlo,monospace;color:#000">K7</div>
+        <div style="flex:1;height:48px;border-radius:11px;background:#F2F2F7;border:1.5px solid #007AFF;display:flex;align-items:center;justify-content:center;font:600 19px ui-monospace,Menlo,monospace;color:#000">4F</div>
+        <div style="flex:1;height:48px;border-radius:11px;background:#F2F2F7;border:.5px solid rgba(60,60,67,.2);display:flex;align-items:center;justify-content:center;font:600 19px ui-monospace,Menlo,monospace;color:rgba(60,60,67,.3)">··</div>
+        <div style="flex:1;height:48px;border-radius:11px;background:#F2F2F7;border:.5px solid rgba(60,60,67,.2)"></div>
+      </div>
+      <div style="height:44px;border-radius:22px;background:#007AFF;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 8px rgba(0,122,255,.25)">
+        <svg width="15" height="15" viewBox="0 0 14 14"><rect x="1" y="1" width="4.5" height="4.5" fill="none" stroke="#fff" stroke-width="1.3"></rect><rect x="8.5" y="1" width="4.5" height="4.5" fill="none" stroke="#fff" stroke-width="1.3"></rect><rect x="1" y="8.5" width="4.5" height="4.5" fill="none" stroke="#fff" stroke-width="1.3"></rect><rect x="8.5" y="8.5" width="2" height="2" fill="#fff"></rect><rect x="11" y="11" width="2" height="2" fill="#fff"></rect></svg>
+        <span style="font:600 15px -apple-system,system-ui,sans-serif;color:#fff">Scan QR from terminal</span>
+      </div>
+    </div>
+    <div style="padding:0 36px 6px;font:400 13px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);text-transform:uppercase">Paired</div>
+    <div style="background:#fff;border-radius:18px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <div style="padding:12px 16px;position:relative">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#34C759"></span>
+          <span style="font:600 15px -apple-system,system-ui,sans-serif;color:#000;flex:1;letter-spacing:-.3px">devbox</span>
+          <span style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">2 sessions live</span>
+        </div>
+        <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);padding:2px 0 0 16px">Tailscale · 12 ms · omp 0.9.4 · Bun 1.3.14</div>
+        <div style="position:absolute;bottom:0;left:16px;right:0;height:.5px;background:rgba(60,60,67,.12)"></div>
+      </div>
+      <div style="padding:12px 16px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:8px;height:8px;border-radius:50%;background:rgba(60,60,67,.25)"></span>
+          <span style="font:600 15px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.7);flex:1;letter-spacing:-.3px">build-01</span>
+          <span style="font:600 13px -apple-system,system-ui,sans-serif;color:#007AFF">Wake</span>
+        </div>
+        <div style="font:400 12px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6);padding:2px 0 0 16px">SSH relay · asleep 3 h · Wake-on-LAN ready</div>
+      </div>
+    </div>
+    <div style="padding:0 36px;font:400 12px/1.5 -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.5);text-align:center">Device-key end-to-end encryption. The relay stores nothing. Revoke a device anytime.</div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">07 · SYSTEM SURFACES — LOCK SCREEN + ISLAND</div>
+<div style="display:flex;gap:18px;align-items:flex-start">
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:linear-gradient(165deg,#AEC5DE 0%,#C9D6E6 40%,#E6E2DC 100%)">
+  <div style="text-align:center;padding-top:78px">
+    <div style="font:500 15px -apple-system,system-ui,sans-serif;color:rgba(20,30,45,.75)">Saturday, August 29</div>
+    <div style="font:200 84px/1 -apple-system,system-ui,sans-serif;color:rgba(20,30,45,.9);letter-spacing:-.02em;margin-top:2px">9:41</div>
+  </div>
+  <div style="margin:26px 14px 0;border-radius:20px;background:rgba(255,255,255,.68);backdrop-filter:blur(20px);border:.5px solid rgba(255,255,255,.6);padding:13px 14px;box-shadow:0 8px 24px rgba(20,30,45,.12)">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+      <div style="width:30px;height:30px;border-radius:8px;background:#007AFF;display:flex;align-items:center;justify-content:center;font:700 14px -apple-system,system-ui,sans-serif;color:#fff">å</div>
+      <div style="flex:1">
+        <div style="font:600 13px -apple-system,system-ui,sans-serif;color:#000">Attaché · Approval needed</div>
+        <div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.65)">pixeld — Fix decoder memory leak</div>
+      </div>
+      <span style="font:400 10.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.5)">now</span>
+    </div>
+    <div style="background:rgba(118,118,128,.14);border-radius:8px;padding:7px 10px;font:400 11px ui-monospace,Menlo,monospace;color:#000;margin-bottom:9px">rm -rf tmp/profiles.old</div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;height:32px;border-radius:9px;background:rgba(118,118,128,.18);display:flex;align-items:center;justify-content:center;font:500 12.5px -apple-system,system-ui,sans-serif;color:#000">Deny</div>
+      <div style="flex:1;height:32px;border-radius:9px;background:#007AFF;display:flex;align-items:center;justify-content:center;font:600 12.5px -apple-system,system-ui,sans-serif;color:#fff">Allow once</div>
+    </div>
+  </div>
+  <div style="margin:auto 14px 76px;border-radius:22px;background:rgba(255,255,255,.72);backdrop-filter:blur(20px);border:.5px solid rgba(255,255,255,.6);padding:12px 14px;box-shadow:0 8px 24px rgba(20,30,45,.12)">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+      <div style="width:26px;height:26px;border-radius:7px;background:#007AFF;display:flex;align-items:center;justify-content:center;font:700 12px -apple-system,system-ui,sans-serif;color:#fff">å</div>
+      <span style="font:600 12.5px -apple-system,system-ui,sans-serif;color:#000;flex:1">pixeld · Running</span>
+      <span style="font:400 10.5px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.6)">turn 14 · 18 min</span>
+    </div>
+    <div style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(60,60,67,.75);margin-bottom:8px">▸ bash — go test ./internal/resize -memprofile</div>
+    <div style="height:4px;border-radius:2px;background:rgba(118,118,128,.2)"><div style="width:66%;height:100%;border-radius:2px;background:#007AFF"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font:400 10px -apple-system,system-ui,sans-serif;color:rgba(60,60,67,.55)"><span>Context 66% · $3.84</span><span>2 agents · advisor quiet</span></div>
+  </div>
+</div>
+</x-import>
+<div style="display:flex;flex-direction:column;gap:12px;width:270px;padding-top:8px">
+  <div style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">DYNAMIC ISLAND STATES</div>
+  <div style="background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px">
+    <div style="font:400 9px ui-monospace,Menlo,monospace;color:#8a8782">compact — session running</div>
+    <div style="align-self:center;width:190px;height:37px;border-radius:24px;background:#000;display:flex;align-items:center;padding:0 14px;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3)">
+      <span style="font:700 12px -apple-system,system-ui,sans-serif;color:#0A84FF">å</span>
+      <span style="flex:1"></span>
+      <span style="width:7px;height:7px;border-radius:50%;background:#30D158"></span>
+      <span style="font:500 10px -apple-system,system-ui,sans-serif;color:#fff">T14</span>
+    </div>
+    <div style="font:400 9px ui-monospace,Menlo,monospace;color:#8a8782">expanded — long-press</div>
+    <div style="align-self:center;width:240px;border-radius:30px;background:#000;padding:14px 16px;box-shadow:0 6px 18px rgba(0,0,0,.35)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font:700 13px -apple-system,system-ui,sans-serif;color:#0A84FF">å</span>
+        <span style="font:600 11.5px -apple-system,system-ui,sans-serif;color:#fff;flex:1">Fix decoder leak</span>
+        <span style="font:400 9px -apple-system,system-ui,sans-serif;color:rgba(255,255,255,.5)">18m</span>
+      </div>
+      <div style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.55);margin-bottom:8px">▸ bash — go test ./internal/resize</div>
+      <div style="height:2.5px;border-radius:2px;background:rgba(255,255,255,.14);margin-bottom:9px"><div style="width:66%;height:100%;background:#0A84FF;border-radius:2px"></div></div>
+      <div style="height:28px;border-radius:14px;background:rgba(10,132,255,.22);display:flex;align-items:center;justify-content:center;font:600 10.5px -apple-system,system-ui,sans-serif;color:#409CFF">1 approval waiting</div>
+    </div>
+    <div style="font:400 9px ui-monospace,Menlo,monospace;color:#8a8782">idle — all sessions parked</div>
+    <div style="align-self:center;width:126px;height:37px;border-radius:24px;background:#000;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 14px rgba(0,0,0,.3)">
+      <span style="font:700 12px -apple-system,system-ui,sans-serif;color:rgba(255,255,255,.45)">å</span>
+      <span style="width:6px;height:6px;border-radius:50%;background:#30D158"></span>
+    </div>
+  </div>
+  <div style="font:400 10px/1.6 -apple-system,system-ui,sans-serif;color:#8a8782">Same payload as <a class="dv-oid" href="#1a">1a</a>: turn, current tool, context %, cost, agent count. System blue replaces orange; the island stays black by platform rule.</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a><span><b>Atelier</b> — soft gray, Linear-like. Warm paper surfaces, teal accent, crisp cards, quieter than <a class="dv-oid" href="#1a">1a</a>, more branded than <a class="dv-oid" href="#1b">1b</a>.</span></div>
+<div style="display:flex;gap:26px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">01 · HOME — SESSIONS</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F7F7F5">
+  <div style="padding:64px 18px 12px;display:flex;align-items:center;gap:10px">
+    <div style="width:34px;height:34px;border-radius:10px;background:#17828F;display:flex;align-items:center;justify-content:center;font:700 15px ui-monospace,Menlo,monospace;color:#fff">å</div>
+    <div style="flex:1">
+      <div style="font:650 16.5px -apple-system,system-ui,sans-serif;color:#1C1C1A;letter-spacing:-.02em">Attaché</div>
+      <div style="font:500 10.5px ui-monospace,Menlo,monospace;color:#8B8B85"><span style="color:#3D9A50">●</span> devbox · tailscale · 12ms</div>
+    </div>
+    <div style="height:32px;border-radius:9px;background:#1C1C1A;display:flex;align-items:center;padding:0 12px;gap:6px;font:600 12px -apple-system,system-ui,sans-serif;color:#fff">+ New</div>
+  </div>
+  <div style="margin:0 18px 16px;height:36px;border-radius:10px;background:#fff;border:1px solid #E6E6E3;display:flex;align-items:center;padding:0 12px;gap:8px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+    <svg width="13" height="13" viewBox="0 0 13 13"><circle cx="5.5" cy="5.5" r="4.5" fill="none" stroke="#A3A39D" stroke-width="1.5"></circle><path d="M9 9l3 3" stroke="#A3A39D" stroke-width="1.5" stroke-linecap="round"></path></svg>
+    <span style="font:400 13px -apple-system,system-ui,sans-serif;color:#A3A39D;flex:1">Search sessions…</span>
+    <span style="font:500 10px ui-monospace,Menlo,monospace;color:#A3A39D;border:1px solid #E6E6E3;border-radius:5px;padding:2px 5px">⌘K</span>
+  </div>
+  <div style="padding:0 18px 8px;display:flex;align-items:center;gap:6px"><span style="font:650 11px -apple-system,system-ui,sans-serif;color:#6F6F6A;letter-spacing:.02em">Pinned</span><span style="flex:1;height:1px;background:#E9E9E6"></span></div>
+  <div style="margin:0 18px 10px;background:#fff;border:1px solid #E6E6E3;border-radius:13px;padding:13px 14px;box-shadow:0 1px 2px rgba(20,20,19,.04);position:relative;overflow:hidden">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#17828F 66%,#E9E9E6 66%)"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <span style="font:650 14px -apple-system,system-ui,sans-serif;color:#1C1C1A;letter-spacing:-.01em;flex:1">Fix decoder memory leak</span>
+      <span style="font:600 10px -apple-system,system-ui,sans-serif;color:#17828F;background:rgba(23,130,143,.09);border:1px solid rgba(23,130,143,.25);border-radius:20px;padding:2px 8px">Running</span>
+    </div>
+    <div style="font:400 12px -apple-system,system-ui,sans-serif;color:#6F6F6A;margin-bottom:9px">editing <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#1C1C1A">pool.go</span> · turn 14 · 2 agents live</div>
+    <div style="display:flex;gap:10px;font:500 10px ui-monospace,Menlo,monospace;color:#8B8B85">
+      <span style="color:#17828F">pixeld</span><span>ctx 66%</span><span>$3.84</span><span style="margin-left:auto">deepseek-v4</span>
+    </div>
+  </div>
+  <div style="margin:0 18px 16px;background:#fff;border:1px solid #EDD9B8;border-radius:13px;padding:13px 14px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <span style="font:650 14px -apple-system,system-ui,sans-serif;color:#1C1C1A;letter-spacing:-.01em;flex:1">Ship usage-based invoicing</span>
+      <span style="font:600 10px -apple-system,system-ui,sans-serif;color:#C07C1D;background:rgba(192,124,29,.08);border:1px solid rgba(192,124,29,.3);border-radius:20px;padding:2px 8px">Needs you</span>
+    </div>
+    <div style="font:400 12px -apple-system,system-ui,sans-serif;color:#6F6F6A;margin-bottom:9px">plan ready for review · 6 steps · waiting 12m</div>
+    <div style="display:flex;gap:10px;font:500 10px ui-monospace,Menlo,monospace;color:#8B8B85">
+      <span style="color:#C07C1D">billing-api</span><span>ctx 31%</span><span>$1.12</span><span style="margin-left:auto">grok-4.5 · plan</span>
+    </div>
+  </div>
+  <div style="padding:0 18px 8px;display:flex;align-items:center;gap:6px"><span style="font:650 11px -apple-system,system-ui,sans-serif;color:#6F6F6A;letter-spacing:.02em">pixeld</span><span style="font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D">devbox</span><span style="flex:1;height:1px;background:#E9E9E6"></span></div>
+  <div style="margin:0 18px;background:#fff;border:1px solid #E6E6E3;border-radius:13px;overflow:hidden;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #F0F0ED">
+      <span style="width:6px;height:6px;border-radius:50%;background:#3D9A50"></span>
+      <span style="font:500 13px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">Batch export presets</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D">merged · 2h</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #F0F0ED">
+      <span style="width:6px;height:6px;border-radius:50%;background:#D5D5D0"></span>
+      <span style="font:500 13px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">Investigate AVIF encode speed</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D">idle · 1d</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 14px">
+      <span style="width:6px;height:6px;border-radius:50%;background:#D5D5D0"></span>
+      <span style="font:500 13px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">⑂ Leak fix — alt approach</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D">idle · 3h</span>
+    </div>
+  </div>
+  <div style="padding:14px 18px 8px;display:flex;align-items:center;gap:6px"><span style="font:650 11px -apple-system,system-ui,sans-serif;color:#6F6F6A;letter-spacing:.02em">omp-web</span><span style="font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D">devbox</span><span style="flex:1;height:1px;background:#E9E9E6"></span></div>
+  <div style="margin:0 18px;background:#fff;border:1px solid #E6E6E3;border-radius:13px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 14px">
+      <span style="width:6px;height:6px;border-radius:50%;background:#D5D5D0"></span>
+      <span style="font:500 13px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">Docs search relevance pass</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D">idle · 2d</span>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">02 · LIVE TURN STREAM</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F7F7F5">
+  <div style="padding:58px 16px 0;background:#FCFCFB;border-bottom:1px solid #E6E6E3">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <svg width="9" height="15" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#6F6F6A" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <div style="flex:1">
+        <div style="font:650 14.5px -apple-system,system-ui,sans-serif;color:#1C1C1A;letter-spacing:-.01em">Fix decoder memory leak</div>
+        <div style="font:400 10px ui-monospace,Menlo,monospace;color:#8B8B85">pixeld · ⑂ fix/resize-pool · turn 14</div>
+      </div>
+      <div style="height:26px;border-radius:20px;background:#fff;border:1px solid #E6E6E3;display:flex;align-items:center;padding:0 10px;gap:5px">
+        <span style="width:6px;height:6px;border-radius:50%;background:#17828F"></span>
+        <span style="font:500 10.5px ui-monospace,Menlo,monospace;color:#1C1C1A">deepseek-v4 ▾</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding-bottom:9px">
+      <div style="flex:1;height:3px;border-radius:2px;background:#E9E9E6"><div style="width:66%;height:100%;border-radius:2px;background:#17828F"></div></div>
+      <span style="font:500 9.5px ui-monospace,Menlo,monospace;color:#8B8B85">132.4k/200k · $3.84 · compact@85%</span>
+    </div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">
+    <div style="align-self:flex-end;max-width:86%;background:#1C1C1A;border-radius:13px 13px 4px 13px;padding:10px 13px;font:400 13px/1.45 -apple-system,system-ui,sans-serif;color:#F7F7F5">Memory climbs ~40MB/min under thumbnail load until OOM. Find the leak in the resize pipeline and prove the fix with pprof.</div>
+    <div style="font:400 13px/1.5 -apple-system,system-ui,sans-serif;color:#3A3A36">Heap profile points at retained buffers in the resize pool — <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#F0F0ED;border-radius:4px;padding:1px 4px;color:#1C1C1A">sync.Pool</span> keeps oversized buffers alive. Patching <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#F0F0ED;border-radius:4px;padding:1px 4px;color:#1C1C1A">Put()</span>:</div>
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:11px;padding:8px 12px;display:flex;align-items:center;gap:9px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <span style="width:20px;height:20px;border-radius:6px;background:rgba(61,154,80,.1);border:1px solid rgba(61,154,80,.3);display:flex;align-items:center;justify-content:center"><svg width="9" height="7" viewBox="0 0 11 9"><path d="M1 4.5l3 3L10 1" stroke="#3D9A50" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+      <span style="font:500 11.5px ui-monospace,Menlo,monospace;color:#3A3A36;flex:1">search <span style="color:#A3A39D">bytes.Buffer</span></span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D">14 hits</span>
+      <svg width="8" height="5" viewBox="0 0 8 5"><path d="M1 1l3 3 3-3" stroke="#A3A39D" stroke-width="1.3" fill="none" stroke-linecap="round"></path></svg>
+    </div>
+    <div style="flex-shrink:0;background:#fff;border:1px solid #E6E6E3;border-radius:11px;overflow:hidden;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;gap:9px;padding:8px 12px;border-bottom:1px solid #F0F0ED">
+        <span style="width:20px;height:20px;border-radius:6px;background:rgba(23,130,143,.09);border:1px solid rgba(23,130,143,.3);display:flex;align-items:center;justify-content:center;font:600 11px ui-monospace,Menlo,monospace;color:#17828F">±</span>
+        <span style="font:500 11.5px ui-monospace,Menlo,monospace;color:#1C1C1A;flex:1">edit pool.go</span>
+        <span style="font:600 10px ui-monospace,Menlo,monospace;color:#3D9A50">+11</span><span style="font:600 10px ui-monospace,Menlo,monospace;color:#C24438">−3</span>
+        <span style="font:500 9px ui-monospace,Menlo,monospace;color:#A3A39D;background:#F0F0ED;border-radius:4px;padding:1px 5px">#a3f2</span>
+      </div>
+      <div style="font:400 10.5px/1.65 ui-monospace,Menlo,monospace;padding:8px 0;background:#FCFCFB">
+        <div style="padding:0 12px;color:#8B8B85"> func Put(b *bytes.Buffer) {</div>
+        <div style="padding:0 12px;background:rgba(61,154,80,.09);color:#2E7A3F">+  if b.Cap() &gt; maxRetained {</div>
+        <div style="padding:0 12px;background:rgba(61,154,80,.09);color:#2E7A3F">+    return // drop oversized bufs</div>
+        <div style="padding:0 12px;background:rgba(61,154,80,.09);color:#2E7A3F">+  }</div>
+        <div style="padding:0 12px;color:#8B8B85">   b.Reset()</div>
+      </div>
+      <div style="display:flex;gap:10px;padding:7px 12px;border-top:1px solid #F0F0ED;font:500 9.5px ui-monospace,Menlo,monospace;color:#A3A39D">
+        <span style="color:#3D9A50">lsp ✓ clean</span><span>gofmt ok</span><span style="margin-left:auto;color:#17828F">expand</span>
+      </div>
+    </div>
+    <div style="background:rgba(23,130,143,.05);border:1px solid rgba(23,130,143,.25);border-radius:11px;padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+        <span style="width:16px;height:16px;border-radius:50%;background:#17828F;display:flex;align-items:center;justify-content:center;font:700 9px -apple-system,system-ui,sans-serif;color:#fff">A</span>
+        <span style="font:650 11px -apple-system,system-ui,sans-serif;color:#17828F">Advisor</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:#8B8B85">grok-4.5 · after turn 13</span>
+      </div>
+      <div style="font:400 12.5px/1.5 -apple-system,system-ui,sans-serif;color:#3A3A36">Cap fix is right, but <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">Get()</span> callers skip <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">Put()</span> on the error path — the leak just moves. Suggest a defer in <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">renderThumb</span>.</div>
+      <div style="display:flex;gap:14px;margin-top:7px;font:600 11px -apple-system,system-ui,sans-serif">
+        <span style="color:#17828F">Ask agent to address</span><span style="color:#A3A39D">Dismiss</span>
+      </div>
+    </div>
+    <div style="background:#fff;border:1px solid #EDD9B8;border-radius:11px;padding:10px 12px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+        <span style="font:650 10px -apple-system,system-ui,sans-serif;color:#C07C1D;background:rgba(192,124,29,.08);border:1px solid rgba(192,124,29,.3);border-radius:20px;padding:2px 8px">Approval</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:#8B8B85">destructive · bash</span>
+      </div>
+      <div style="background:#1C1C1A;border-radius:7px;padding:7px 10px;font:400 11px ui-monospace,Menlo,monospace;color:#F7F7F5;margin-bottom:5px">rm -rf tmp/profiles.old</div>
+      <div style="font:400 11px -apple-system,system-ui,sans-serif;color:#8B8B85;margin-bottom:9px">reason: clear stale pprof baselines before re-comparing</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;height:31px;border-radius:8px;border:1px solid #E6E6E3;display:flex;align-items:center;justify-content:center;font:600 12px -apple-system,system-ui,sans-serif;color:#6F6F6A">Deny</div>
+        <div style="flex:1.4;height:31px;border-radius:8px;background:#17828F;display:flex;align-items:center;justify-content:center;font:600 12px -apple-system,system-ui,sans-serif;color:#fff">Allow once</div>
+        <div style="flex:1;height:31px;border-radius:8px;border:1px solid rgba(23,130,143,.4);display:flex;align-items:center;justify-content:center;font:600 12px -apple-system,system-ui,sans-serif;color:#17828F">Always</div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:10px 16px 28px;background:#FCFCFB;border-top:1px solid #E6E6E3">
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">
+      <span style="height:24px;border-radius:20px;background:rgba(23,130,143,.09);border:1px solid rgba(23,130,143,.3);display:flex;align-items:center;padding:0 10px;font:600 10.5px -apple-system,system-ui,sans-serif;color:#17828F">Chat ▾</span>
+      <span style="height:24px;border-radius:20px;background:#fff;border:1px solid #E6E6E3;display:flex;align-items:center;padding:0 10px;font:500 10.5px ui-monospace,Menlo,monospace;color:#6F6F6A">@default ▾</span>
+      <span style="height:24px;width:24px;border-radius:20px;background:#fff;border:1px solid #E6E6E3;display:flex;align-items:center;justify-content:center;font:500 11px ui-monospace,Menlo,monospace;color:#6F6F6A">/</span>
+      <span style="margin-left:auto;font:600 10.5px -apple-system,system-ui,sans-serif;color:#C24438">■ Stop</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:32px;height:32px;border-radius:9px;background:#fff;border:1px solid #E6E6E3;display:flex;align-items:center;justify-content:center;font:300 19px -apple-system,system-ui,sans-serif;color:#6F6F6A;padding-bottom:2px">+</div>
+      <div style="flex:1;height:38px;border-radius:10px;background:#fff;border:1px solid #E6E6E3;display:flex;align-items:center;padding:0 13px;gap:8px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+        <span style="flex:1;font:400 13px -apple-system,system-ui,sans-serif;color:#A3A39D">Message omp…</span>
+        <svg width="12" height="17" viewBox="0 0 12 17"><rect x="3.5" y="1" width="5" height="9" rx="2.5" fill="none" stroke="#8B8B85" stroke-width="1.4"></rect><path d="M1 8.5a5 5 0 0 0 10 0M6 13.5V16" stroke="#8B8B85" stroke-width="1.4" fill="none" stroke-linecap="round"></path></svg>
+      </div>
+      <div style="width:32px;height:32px;border-radius:9px;background:#17828F;display:flex;align-items:center;justify-content:center"><svg width="12" height="13" viewBox="0 0 12 13"><path d="M6 12V2M2 6l4-4 4 4" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">03 · SUBAGENT HUB</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F7F7F5">
+  <div style="padding:58px 16px 10px;display:flex;align-items:center;gap:10px;background:#FCFCFB;border-bottom:1px solid #E6E6E3">
+    <svg width="9" height="15" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#6F6F6A" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="flex:1">
+      <div style="font:650 14.5px -apple-system,system-ui,sans-serif;color:#1C1C1A">Agents</div>
+      <div style="font:400 10px ui-monospace,Menlo,monospace;color:#8B8B85">2 live · 1 done · 1 queued</div>
+    </div>
+    <span style="height:28px;border-radius:8px;background:#1C1C1A;display:flex;align-items:center;padding:0 11px;font:600 11px -apple-system,system-ui,sans-serif;color:#fff">+ Dispatch</span>
+  </div>
+  <div style="padding:12px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div style="background:#fff;border:1px solid rgba(23,130,143,.35);border-radius:12px;padding:11px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:6px;height:6px;border-radius:50%;background:#17828F"></span><span style="font:650 12.5px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">explore</span></div>
+      <div style="font:400 11px/1.45 -apple-system,system-ui,sans-serif;color:#6F6F6A;height:32px;overflow:hidden">tracing Get() callers across cmd/loadgen…</div>
+      <div style="margin-top:7px;font:400 9px ui-monospace,Menlo,monospace;color:#A3A39D">2m14s · 8.1k tok · 12 calls</div>
+    </div>
+    <div style="background:#fff;border:1px solid rgba(23,130,143,.35);border-radius:12px;padding:11px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:6px;height:6px;border-radius:50%;background:#17828F"></span><span style="font:650 12.5px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">reviewer</span></div>
+      <div style="font:400 11px/1.45 -apple-system,system-ui,sans-serif;color:#6F6F6A;height:32px;overflow:hidden">reviewing pool.go diff for API breakage</div>
+      <div style="margin-top:7px;font:400 9px ui-monospace,Menlo,monospace;color:#A3A39D">41s · 3.3k tok · 4 calls</div>
+    </div>
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:12px;padding:11px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font:600 10px -apple-system,system-ui,sans-serif;color:#3D9A50">✓</span><span style="font:650 12.5px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">librarian</span></div>
+      <div style="font:400 11px/1.45 -apple-system,system-ui,sans-serif;color:#6F6F6A;height:32px;overflow:hidden">sync.Pool retention semantics — 3 sources</div>
+      <div style="margin-top:7px;font:400 9px ui-monospace,Menlo,monospace;color:#A3A39D">done · 5.9k tok · report ready</div>
+    </div>
+    <div style="background:transparent;border:1.5px dashed #D5D5D0;border-radius:12px;padding:11px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:6px;height:6px;border-radius:50%;border:1.5px solid #A3A39D"></span><span style="font:650 12.5px -apple-system,system-ui,sans-serif;color:#6F6F6A;flex:1">oracle</span></div>
+      <div style="font:400 11px/1.45 -apple-system,system-ui,sans-serif;color:#8B8B85;height:32px;overflow:hidden">queued: sanity-check pprof methodology</div>
+      <div style="margin-top:7px;font:400 9px ui-monospace,Menlo,monospace;color:#A3A39D">waiting on reviewer</div>
+    </div>
+  </div>
+  <div style="margin-top:auto;background:#fff;border-top:1px solid #E6E6E3;border-radius:18px 18px 0 0;padding:9px 16px 26px;box-shadow:0 -6px 24px rgba(20,20,19,.07)">
+    <div style="width:36px;height:4px;border-radius:2px;background:#E6E6E3;margin:0 auto 10px"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="width:6px;height:6px;border-radius:50%;background:#17828F"></span>
+      <span style="font:650 13px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">reviewer</span>
+      <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:#A3A39D">agent://7f31 · task model</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px">
+      <div style="background:#F7F7F5;border:1px solid #F0F0ED;border-radius:8px;padding:7px 10px;display:flex;gap:8px;align-items:center">
+        <span style="font:600 9.5px -apple-system,system-ui,sans-serif;color:#3D9A50">✓</span>
+        <span style="font:400 10.5px ui-monospace,Menlo,monospace;color:#6F6F6A;flex:1">read internal/resize/pool.go</span>
+        <span style="font:400 9px ui-monospace,Menlo,monospace;color:#A3A39D">0.4s</span>
+      </div>
+      <div style="font:400 12px/1.5 -apple-system,system-ui,sans-serif;color:#3A3A36">Public API unchanged. One concern: <span style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px">maxRetained</span> is package-private — loadgen tests can't tune it…</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;height:34px;border-radius:9px;background:#F7F7F5;border:1px solid #E6E6E3;display:flex;align-items:center;padding:0 12px;font:400 12px -apple-system,system-ui,sans-serif;color:#A3A39D">Steer reviewer…</div>
+      <div style="width:34px;height:34px;border-radius:9px;background:#17828F;display:flex;align-items:center;justify-content:center"><svg width="11" height="12" viewBox="0 0 12 13"><path d="M6 12V2M2 6l4-4 4 4" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">04 · APPROVALS QUEUE</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F7F7F5">
+  <div style="padding:58px 16px 10px;background:#FCFCFB;border-bottom:1px solid #E6E6E3">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg width="9" height="15" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#6F6F6A" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <div style="font:650 14.5px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">Approvals <span style="font:600 11px -apple-system,system-ui,sans-serif;color:#C07C1D;background:rgba(192,124,29,.08);border:1px solid rgba(192,124,29,.3);border-radius:20px;padding:1px 8px;margin-left:4px">3</span></div>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:#8B8B85">policy: ask destructive</span>
+    </div>
+    <div style="display:flex;gap:7px;padding:10px 0 2px">
+      <span style="height:24px;border-radius:20px;background:#1C1C1A;display:flex;align-items:center;padding:0 11px;font:600 10.5px -apple-system,system-ui,sans-serif;color:#fff">All 3</span>
+      <span style="height:24px;border-radius:20px;background:#fff;border:1px solid #E6E6E3;display:flex;align-items:center;padding:0 11px;font:500 10.5px -apple-system,system-ui,sans-serif;color:#6F6F6A">pixeld 2</span>
+      <span style="height:24px;border-radius:20px;background:#fff;border:1px solid #E6E6E3;display:flex;align-items:center;padding:0 11px;font:500 10.5px -apple-system,system-ui,sans-serif;color:#6F6F6A">billing-api 1</span>
+    </div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:11px">
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:12px;padding:11px 13px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+        <span style="font:650 9.5px ui-monospace,Menlo,monospace;color:#C24438;background:rgba(194,68,56,.07);border:1px solid rgba(194,68,56,.25);border-radius:20px;padding:2px 8px">HIGH · bash</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:#A3A39D;flex:1">pixeld · 40s</span>
+      </div>
+      <div style="background:#1C1C1A;border-radius:7px;padding:7px 10px;font:400 11px ui-monospace,Menlo,monospace;color:#F7F7F5;margin-bottom:5px">rm -rf tmp/profiles.old</div>
+      <div style="font:400 11px -apple-system,system-ui,sans-serif;color:#8B8B85;margin-bottom:9px">clear stale pprof baselines before re-comparing</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid #E6E6E3;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#6F6F6A">Deny</div>
+        <div style="flex:1.4;height:30px;border-radius:8px;background:#17828F;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#fff">Allow once</div>
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(23,130,143,.4);display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#17828F">Always</div>
+      </div>
+    </div>
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:12px;padding:11px 13px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+        <span style="font:650 9.5px ui-monospace,Menlo,monospace;color:#C07C1D;background:rgba(192,124,29,.07);border:1px solid rgba(192,124,29,.28);border-radius:20px;padding:2px 8px">MED · write outside workspace</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:#A3A39D;flex:1">pixeld · 2m</span>
+      </div>
+      <div style="font:500 10.5px ui-monospace,Menlo,monospace;color:#3A3A36;margin-bottom:6px">~/.omp/agent/models.yml</div>
+      <div style="background:#FCFCFB;border:1px solid #F0F0ED;border-radius:7px;padding:6px 10px;font:400 10px/1.6 ui-monospace,Menlo,monospace;margin-bottom:9px">
+        <div style="color:#C24438">− vision: grok-4.5:medium</div>
+        <div style="color:#2E7A3F">+ vision: grok-4.5:high</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid #E6E6E3;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#6F6F6A">Deny</div>
+        <div style="flex:1.4;height:30px;border-radius:8px;background:#17828F;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#fff">Allow once</div>
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(23,130,143,.4);display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#17828F">Always</div>
+      </div>
+    </div>
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:12px;padding:11px 13px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+        <span style="font:650 9.5px ui-monospace,Menlo,monospace;color:#3D9A50;background:rgba(61,154,80,.07);border:1px solid rgba(61,154,80,.28);border-radius:20px;padding:2px 8px">LOW · mcp</span>
+        <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:#A3A39D;flex:1">billing-api · 12m</span>
+      </div>
+      <div style="font:400 12px -apple-system,system-ui,sans-serif;color:#3A3A36;margin-bottom:9px"><span style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#1C1C1A">github.create_pr</span> — "invoicing: metered usage rollups" → base main, draft</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid #E6E6E3;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#6F6F6A">Deny</div>
+        <div style="flex:1.4;height:30px;border-radius:8px;background:#17828F;display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#fff">Allow once</div>
+        <div style="flex:1;height:30px;border-radius:8px;border:1px solid rgba(23,130,143,.4);display:flex;align-items:center;justify-content:center;font:600 11.5px -apple-system,system-ui,sans-serif;color:#17828F">Always</div>
+      </div>
+    </div>
+    <div style="text-align:center;font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D">answers sync to the TUI instantly · <span style="color:#17828F">edit policy</span></div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">05 · ROLES & SETTINGS</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F7F7F5">
+  <div style="padding:58px 16px 10px;display:flex;align-items:center;gap:10px;background:#FCFCFB;border-bottom:1px solid #E6E6E3">
+    <svg width="9" height="15" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#6F6F6A" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="font:650 14.5px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">Models & settings</div>
+    <span style="font:400 10px ui-monospace,Menlo,monospace;color:#8B8B85">global profile</span>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px"><span style="font:650 11px -apple-system,system-ui,sans-serif;color:#6F6F6A">Model roles</span><span style="flex:1;height:1px;background:#E9E9E6"></span></div>
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:12px;overflow:hidden;margin-bottom:12px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;padding:8.5px 13px;border-bottom:1px solid #F0F0ED"><span style="width:72px;font:600 10px ui-monospace,Menlo,monospace;color:#17828F">default</span><span style="flex:1;font:500 12px ui-monospace,Menlo,monospace;color:#1C1C1A">deepseek-v4-flash</span><span style="font:600 9px ui-monospace,Menlo,monospace;color:#17828F;background:rgba(23,130,143,.08);border:1px solid rgba(23,130,143,.3);border-radius:20px;padding:2px 7px">max</span></div>
+      <div style="display:flex;align-items:center;padding:8.5px 13px;border-bottom:1px solid #F0F0ED"><span style="width:72px;font:600 10px ui-monospace,Menlo,monospace;color:#8B8B85">plan</span><span style="flex:1;font:500 12px ui-monospace,Menlo,monospace;color:#1C1C1A">grok-4.5</span><span style="font:600 9px ui-monospace,Menlo,monospace;color:#6F6F6A;background:#F0F0ED;border-radius:20px;padding:2px 7px">high</span></div>
+      <div style="display:flex;align-items:center;padding:8.5px 13px;border-bottom:1px solid #F0F0ED"><span style="width:72px;font:600 10px ui-monospace,Menlo,monospace;color:#8B8B85">slow</span><span style="flex:1;font:500 12px ui-monospace,Menlo,monospace;color:#1C1C1A">claude-opus-4.6</span><span style="font:600 9px ui-monospace,Menlo,monospace;color:#6F6F6A;background:#F0F0ED;border-radius:20px;padding:2px 7px">xhigh</span></div>
+      <div style="display:flex;align-items:center;padding:8.5px 13px;border-bottom:1px solid #F0F0ED"><span style="width:72px;font:600 10px ui-monospace,Menlo,monospace;color:#8B8B85">task</span><span style="flex:1;font:500 12px ui-monospace,Menlo,monospace;color:#1C1C1A">deepseek-v4-flash</span><span style="font:600 9px ui-monospace,Menlo,monospace;color:#6F6F6A;background:#F0F0ED;border-radius:20px;padding:2px 7px">medium</span></div>
+      <div style="display:flex;align-items:center;padding:8.5px 13px;border-bottom:1px solid #F0F0ED"><span style="width:72px;font:600 10px ui-monospace,Menlo,monospace;color:#8B8B85">smol</span><span style="flex:1;font:500 12px ui-monospace,Menlo,monospace;color:#1C1C1A">deepseek-v4-flash</span><span style="font:600 9px ui-monospace,Menlo,monospace;color:#6F6F6A;background:#F0F0ED;border-radius:20px;padding:2px 7px">low</span></div>
+      <div style="display:flex;align-items:center;padding:8.5px 13px;border-bottom:1px solid #F0F0ED"><span style="width:72px;font:600 10px ui-monospace,Menlo,monospace;color:#8B8B85">vision</span><span style="flex:1;font:500 12px ui-monospace,Menlo,monospace;color:#1C1C1A">grok-4.5</span><span style="font:600 9px ui-monospace,Menlo,monospace;color:#6F6F6A;background:#F0F0ED;border-radius:20px;padding:2px 7px">medium</span></div>
+      <div style="display:flex;align-items:center;padding:8.5px 13px;border-bottom:1px solid #F0F0ED"><span style="width:72px;font:600 10px ui-monospace,Menlo,monospace;color:#8B8B85">designer</span><span style="flex:1;font:500 12px ui-monospace,Menlo,monospace;color:#1C1C1A">claude-sonnet-4.5</span><span style="font:600 9px ui-monospace,Menlo,monospace;color:#6F6F6A;background:#F0F0ED;border-radius:20px;padding:2px 7px">high</span></div>
+      <div style="display:flex;align-items:center;padding:8.5px 13px"><span style="width:72px;font:600 10px ui-monospace,Menlo,monospace;color:#C07C1D">advisor</span><span style="flex:1;font:500 12px ui-monospace,Menlo,monospace;color:#1C1C1A">grok-4.5</span><span style="font:600 9px ui-monospace,Menlo,monospace;color:#6F6F6A;background:#F0F0ED;border-radius:20px;padding:2px 7px">high</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px"><span style="font:650 11px -apple-system,system-ui,sans-serif;color:#6F6F6A">Fallback chain — default</span><span style="flex:1;height:1px;background:#E9E9E6"></span></div>
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:12px;padding:11px 13px;margin-bottom:12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <span style="font:600 10.5px ui-monospace,Menlo,monospace;color:#17828F;background:rgba(23,130,143,.08);border:1px solid rgba(23,130,143,.3);border-radius:6px;padding:4px 8px">deepseek-v4-flash</span>
+      <span style="color:#A3A39D;font:400 11px ui-monospace,Menlo,monospace">→</span>
+      <span style="font:600 10.5px ui-monospace,Menlo,monospace;color:#6F6F6A;background:#F7F7F5;border:1px solid #E6E6E3;border-radius:6px;padding:4px 8px">nemotron-3-ultra</span>
+      <span style="color:#A3A39D;font:400 11px ui-monospace,Menlo,monospace">→</span>
+      <span style="font:600 10.5px ui-monospace,Menlo,monospace;color:#6F6F6A;background:#F7F7F5;border:1px solid #E6E6E3;border-radius:6px;padding:4px 8px">glm-5.2</span>
+      <span style="font:400 9.5px ui-monospace,Menlo,monospace;color:#A3A39D;width:100%">rotates on 429 / quota — the session never dies</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px"><span style="font:650 11px -apple-system,system-ui,sans-serif;color:#6F6F6A">Behavior</span><span style="flex:1;height:1px;background:#E9E9E6"></span></div>
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid #F0F0ED">
+        <span style="flex:1;font:500 12.5px -apple-system,system-ui,sans-serif;color:#1C1C1A">Approval mode</span>
+        <div style="display:flex;background:#F0F0ED;border-radius:7px;padding:2px">
+          <span style="font:500 10px -apple-system,system-ui,sans-serif;color:#8B8B85;padding:3px 8px">yolo</span>
+          <span style="font:600 10px -apple-system,system-ui,sans-serif;color:#1C1C1A;background:#fff;border-radius:5px;padding:3px 8px;box-shadow:0 1px 2px rgba(20,20,19,.08)">destructive</span>
+          <span style="font:500 10px -apple-system,system-ui,sans-serif;color:#8B8B85;padding:3px 8px">all</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid #F0F0ED"><span style="flex:1;font:500 12.5px -apple-system,system-ui,sans-serif;color:#1C1C1A">Hindsight memory</span><div style="width:38px;height:22px;border-radius:11px;background:#17828F;position:relative"><div style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff"></div></div></div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid #F0F0ED"><span style="flex:1;font:500 12.5px -apple-system,system-ui,sans-serif;color:#1C1C1A">Snapcompact</span><span style="font:500 10.5px ui-monospace,Menlo,monospace;color:#8B8B85">auto @ 85% ▸</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid #F0F0ED"><span style="flex:1;font:500 12.5px -apple-system,system-ui,sans-serif;color:#1C1C1A">Rules</span><span style="font:500 10.5px ui-monospace,Menlo,monospace;color:#8B8B85">12 · 4 formats ▸</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid #F0F0ED"><span style="flex:1;font:500 12.5px -apple-system,system-ui,sans-serif;color:#1C1C1A">MCP servers</span><span style="font:500 10.5px ui-monospace,Menlo,monospace;color:#8B8B85">3 connected ▸</span></div>
+      <div style="display:flex;align-items:center;padding:9px 13px"><span style="flex:1;font:500 12.5px -apple-system,system-ui,sans-serif;color:#1C1C1A">Skills & extensions</span><span style="font:500 10.5px ui-monospace,Menlo,monospace;color:#8B8B85">7 · 5 ▸</span></div>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">06 · PAIRING</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:#F7F7F5">
+  <div style="padding:58px 16px 10px;display:flex;align-items:center;gap:10px;background:#FCFCFB;border-bottom:1px solid #E6E6E3">
+    <svg width="9" height="15" viewBox="0 0 10 17"><path d="M8.5 1.5L2 8.5l6.5 7" stroke="#6F6F6A" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="font:650 14.5px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">Machines</div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:14px 16px">
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:13px;padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="font:650 14px -apple-system,system-ui,sans-serif;color:#1C1C1A;margin-bottom:4px">Pair a machine</div>
+      <div style="font:400 11.5px/1.5 -apple-system,system-ui,sans-serif;color:#8B8B85;margin-bottom:12px">On the machine running omp:</div>
+      <div style="background:#1C1C1A;border-radius:9px;padding:10px 12px;display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="font:400 12px ui-monospace,Menlo,monospace;color:#F7F7F5;flex:1"><span style="color:#8B8B85">$</span> omp serve --pair</span>
+        <span style="font:600 9.5px ui-monospace,Menlo,monospace;color:#7FD4DE">copy</span>
+      </div>
+      <div style="font:600 9.5px ui-monospace,Menlo,monospace;color:#A3A39D;margin-bottom:8px;letter-spacing:.08em">THEN ENTER THE CODE IT PRINTS</div>
+      <div style="display:flex;gap:7px;margin-bottom:14px">
+        <div style="flex:1;height:46px;border-radius:9px;background:#F7F7F5;border:1.5px solid #17828F;display:flex;align-items:center;justify-content:center;font:650 18px ui-monospace,Menlo,monospace;color:#1C1C1A">K7</div>
+        <div style="flex:1;height:46px;border-radius:9px;background:#F7F7F5;border:1.5px solid #17828F;display:flex;align-items:center;justify-content:center;font:650 18px ui-monospace,Menlo,monospace;color:#1C1C1A">4F</div>
+        <div style="flex:1;height:46px;border-radius:9px;background:#F7F7F5;border:1px solid #E6E6E3;display:flex;align-items:center;justify-content:center;font:650 18px ui-monospace,Menlo,monospace;color:#D5D5D0">··</div>
+        <div style="flex:1;height:46px;border-radius:9px;background:#F7F7F5;border:1px solid #E6E6E3"></div>
+      </div>
+      <div style="height:40px;border-radius:9px;background:#17828F;display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="4.5" height="4.5" fill="none" stroke="#fff" stroke-width="1.3"></rect><rect x="8.5" y="1" width="4.5" height="4.5" fill="none" stroke="#fff" stroke-width="1.3"></rect><rect x="1" y="8.5" width="4.5" height="4.5" fill="none" stroke="#fff" stroke-width="1.3"></rect><rect x="8.5" y="8.5" width="2" height="2" fill="#fff"></rect><rect x="11" y="11" width="2" height="2" fill="#fff"></rect></svg>
+        <span style="font:600 13px -apple-system,system-ui,sans-serif;color:#fff">Scan QR from terminal</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px"><span style="font:650 11px -apple-system,system-ui,sans-serif;color:#6F6F6A">Paired</span><span style="flex:1;height:1px;background:#E9E9E6"></span></div>
+    <div style="background:#fff;border:1px solid #E6E6E3;border-radius:13px;overflow:hidden;margin-bottom:10px;box-shadow:0 1px 2px rgba(20,20,19,.04)">
+      <div style="padding:12px 13px;border-bottom:1px solid #F0F0ED">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#3D9A50"></span>
+          <span style="font:650 13px -apple-system,system-ui,sans-serif;color:#1C1C1A;flex:1">devbox</span>
+          <span style="font:400 10px ui-monospace,Menlo,monospace;color:#8B8B85">2 sessions live</span>
+        </div>
+        <div style="font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D;padding-left:15px">tailscale · 12ms · omp 0.9.4 · bun 1.3.14</div>
+      </div>
+      <div style="padding:12px 13px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#D5D5D0"></span>
+          <span style="font:650 13px -apple-system,system-ui,sans-serif;color:#6F6F6A;flex:1">build-01</span>
+          <span style="font:600 10px -apple-system,system-ui,sans-serif;color:#17828F;border:1px solid rgba(23,130,143,.4);border-radius:20px;padding:2px 9px">Wake</span>
+        </div>
+        <div style="font:400 10px ui-monospace,Menlo,monospace;color:#A3A39D;padding-left:15px">ssh relay · asleep 3h · wake-on-lan ready</div>
+      </div>
+    </div>
+    <div style="font:400 10px/1.6 ui-monospace,Menlo,monospace;color:#A3A39D;text-align:center">device-key E2E · relay stores nothing · revoke anytime</div>
+  </div>
+</div>
+</x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">07 · SYSTEM SURFACES — LOCK SCREEN + ISLAND</div>
+<div style="display:flex;gap:18px;align-items:flex-start">
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+<div style="height:100%;box-sizing:border-box;display:flex;flex-direction:column;background:linear-gradient(170deg,#3E4A49 0%,#5B6B68 45%,#8E9A8F 100%)">
+  <div style="text-align:center;padding-top:78px">
+    <div style="font:500 15px -apple-system,system-ui,sans-serif;color:rgba(255,255,255,.8)">Saturday, August 29</div>
+    <div style="font:200 84px/1 -apple-system,system-ui,sans-serif;color:#fff;letter-spacing:-.02em;margin-top:2px">9:41</div>
+  </div>
+  <div style="margin:26px 14px 0;border-radius:18px;background:rgba(28,28,26,.6);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);padding:13px 14px">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+      <div style="width:30px;height:30px;border-radius:8px;background:#17828F;display:flex;align-items:center;justify-content:center;font:700 13px ui-monospace,Menlo,monospace;color:#fff">å</div>
+      <div style="flex:1">
+        <div style="font:600 13px -apple-system,system-ui,sans-serif;color:#fff">Attaché · approval needed</div>
+        <div style="font:400 11px -apple-system,system-ui,sans-serif;color:rgba(255,255,255,.6)">pixeld — fix decoder memory leak</div>
+      </div>
+      <span style="font:400 10.5px -apple-system,system-ui,sans-serif;color:rgba(255,255,255,.5)">now</span>
+    </div>
+    <div style="background:rgba(0,0,0,.45);border-radius:8px;padding:7px 10px;font:400 11px ui-monospace,Menlo,monospace;color:#fff;margin-bottom:9px">rm -rf tmp/profiles.old</div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;height:32px;border-radius:8px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font:500 12.5px -apple-system,system-ui,sans-serif;color:#fff">Deny</div>
+      <div style="flex:1;height:32px;border-radius:8px;background:#17828F;display:flex;align-items:center;justify-content:center;font:600 12.5px -apple-system,system-ui,sans-serif;color:#fff">Allow once</div>
+    </div>
+  </div>
+  <div style="margin:auto 14px 76px;border-radius:20px;background:rgba(28,28,26,.68);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.14);padding:12px 14px">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+      <div style="width:26px;height:26px;border-radius:7px;background:#17828F;display:flex;align-items:center;justify-content:center;font:700 12px ui-monospace,Menlo,monospace;color:#fff">å</div>
+      <span style="font:600 12.5px -apple-system,system-ui,sans-serif;color:#fff;flex:1">pixeld · running</span>
+      <span style="font:400 10px ui-monospace,Menlo,monospace;color:#7FD4DE">turn 14 · 18m</span>
+    </div>
+    <div style="font:400 11px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.65);margin-bottom:8px">▸ bash — go test ./internal/resize -memprofile</div>
+    <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.16)"><div style="width:66%;height:100%;border-radius:2px;background:#7FD4DE"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.45)"><span>ctx 66% · $3.84</span><span>2 agents · advisor quiet</span></div>
+  </div>
+</div>
+</x-import>
+<div style="display:flex;flex-direction:column;gap:12px;width:270px;padding-top:8px">
+  <div style="font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#8a8782">DYNAMIC ISLAND STATES</div>
+  <div style="background:#fff;border:1px solid #E6E6E3;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px">
+    <div style="font:400 9px ui-monospace,Menlo,monospace;color:#8a8782">compact — session running</div>
+    <div style="align-self:center;width:190px;height:37px;border-radius:24px;background:#000;display:flex;align-items:center;padding:0 14px;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3)">
+      <span style="font:700 11px ui-monospace,Menlo,monospace;color:#7FD4DE">å</span>
+      <span style="flex:1"></span>
+      <span style="width:7px;height:7px;border-radius:50%;background:#7FD4DE"></span>
+      <span style="font:500 10px ui-monospace,Menlo,monospace;color:#fff">T14</span>
+    </div>
+    <div style="font:400 9px ui-monospace,Menlo,monospace;color:#8a8782">expanded — long-press</div>
+    <div style="align-self:center;width:240px;border-radius:30px;background:#000;padding:14px 16px;box-shadow:0 6px 18px rgba(0,0,0,.35)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font:700 12px ui-monospace,Menlo,monospace;color:#7FD4DE">å</span>
+        <span style="font:600 11.5px -apple-system,system-ui,sans-serif;color:#fff;flex:1">fix decoder leak</span>
+        <span style="font:400 9px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.5)">18m</span>
+      </div>
+      <div style="font:400 9.5px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.55);margin-bottom:8px">▸ bash — go test ./internal/resize</div>
+      <div style="height:2.5px;border-radius:2px;background:rgba(255,255,255,.14);margin-bottom:9px"><div style="width:66%;height:100%;background:#7FD4DE;border-radius:2px"></div></div>
+      <div style="height:28px;border-radius:14px;background:rgba(127,212,222,.14);border:1px solid rgba(127,212,222,.4);display:flex;align-items:center;justify-content:center;font:600 10.5px -apple-system,system-ui,sans-serif;color:#7FD4DE">1 approval waiting</div>
+    </div>
+    <div style="font:400 9px ui-monospace,Menlo,monospace;color:#8a8782">idle — all sessions parked</div>
+    <div style="align-self:center;width:126px;height:37px;border-radius:24px;background:#000;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 14px rgba(0,0,0,.3)">
+      <span style="font:700 11px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.4)">å</span>
+      <span style="width:6px;height:6px;border-radius:50%;background:#3D9A50"></span>
+    </div>
+  </div>
+  <div style="font:400 10px/1.6 -apple-system,system-ui,sans-serif;color:#8a8782">Teal replaces orange in the island; payload identical to <a class="dv-oid" href="#1a">1a</a>. Tapping the approval chip deep-links to the pending card in the stream.</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p class="dv-next">Try next: "go with <a class="dv-oid" href="#1a">1a</a>, build the tappable prototype" · "mix: <a class="dv-oid" href="#1c">1c</a> surfaces with <a class="dv-oid" href="#1a">1a</a>'s orange" · "show the plan-review + session-branch screens too"</p>
+</section>
+</x-dc>
+</body>
+</html>
