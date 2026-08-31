@@ -802,32 +802,50 @@ final class BridgeEngine: Engine {
 
     // MARK: Engine intents
 
-    func send(_ text: String, mode: ComposerMode, role: String, images: [AttachedImage] = []) {
+    func send(_ text: String, mode: ComposerMode, role: String, attachments: [ComposerAttachment] = []) {
         Task { [weak self] in
             guard let self, let client = self.client, let app = self.app,
                   let sessionId = app.sessionId else { return }
             let trimmed = text.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty || !images.isEmpty else { return }
+            guard !trimmed.isEmpty || !attachments.isEmpty else { return }
             if app.offline {
                 app.append(.steer("queued: \"\(trimmed)\" — sends when \(app.machine.name) reconnects"))
                 return
             }
+            let images = attachments.filter { $0.kind == .image }
+            let files = attachments.filter { $0.kind == .file }
             let prefix = mode == .chat ? "" : "[\(mode.rawValue.lowercased())] "
-            let attachNote = images.isEmpty ? "" : " 📎\(images.count)"
+            let attachNote = attachments.isEmpty ? "" : " 📎\(attachments.count)"
             app.append(.user(prefix + trimmed + attachNote))
             if mode == .goal {
                 app.goal = GoalModel(objective: trimmed, turns: 1, budget: 40, active: true)
             }
             do {
+                // Upload plain files into the session cwd first, then reference
+                // their paths in the prompt so the agent can read them.
+                var uploadedPaths: [String] = []
+                for file in files {
+                    let result = try await client.send("upload_file", [
+                        "sessionId": sessionId,
+                        "name": file.name,
+                        "data": file.data.base64EncodedString(),
+                    ])
+                    if let path = result["path"]?.stringValue { uploadedPaths.append(path) }
+                }
+                var message = trimmed.isEmpty ? "See the attached content." : trimmed
+                if !uploadedPaths.isEmpty {
+                    message += "\n\nAttached files (saved on \(app.machine.name)):\n"
+                        + uploadedPaths.map { "- \($0)" }.joined(separator: "\n")
+                }
                 var payload: [String: Any] = [
                     "sessionId": sessionId,
-                    "message": trimmed.isEmpty ? "See the attached image(s)." : trimmed,
+                    "message": message,
                     "mode": mode.rawValue.lowercased(),
                 ]
                 if app.turnActive { payload["streamingBehavior"] = "steer" }
                 if !images.isEmpty {
                     payload["images"] = images.map {
-                        ["data": $0.jpegData.base64EncodedString(), "mimeType": $0.mimeType]
+                        ["data": $0.data.base64EncodedString(), "mimeType": $0.mimeType]
                     }
                 }
                 try await client.send("prompt", payload)
@@ -1070,6 +1088,36 @@ final class BridgeEngine: Engine {
     func wake(mac: String) async -> Bool {
         guard let client else { return false }
         return (try? await client.send("wake", ["mac": mac])) != nil
+    }
+
+    func unpinSession() {
+        Task { [weak self] in
+            guard let self, let app = self.app else { return }
+            if let sessionId = app.sessionId {
+                _ = try? await self.client?.send("detach", ["sessionId": sessionId])
+            }
+            app.sessionId = nil
+            app.sessionTitle = ""
+            app.items = []
+            app.subagents = []
+            app.turnActive = false
+            app.typing = false
+            self.currentSummary = nil
+            LiveActivityManager.shared.end()
+            self.refreshSessions()
+        }
+    }
+
+    func stopSession(id: String) {
+        Task { [weak self] in
+            guard let self, let app = self.app else { return }
+            _ = try? await self.client?.send("kill_session", ["sessionId": id])
+            if app.sessionId == id {
+                self.unpinSession()
+            } else {
+                self.refreshSessions()
+            }
+        }
     }
 
     func diffVerdict(approved: Bool, note: String?) {

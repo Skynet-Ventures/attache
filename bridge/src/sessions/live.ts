@@ -174,6 +174,31 @@ export class LiveSession {
 		return out;
 	}
 
+	/**
+	 * Write an uploaded file into the session's working directory so the
+	 * agent can read it. Files land in <cwd>/attache-uploads/.
+	 */
+	async saveUpload(name: string, base64: string): Promise<string> {
+		const { mkdir, writeFile } = await import("node:fs/promises");
+		const { join, basename } = await import("node:path");
+		const safeName = basename(name).replace(/[^\w.\-]/g, "_").slice(0, 120) || "upload";
+		const bytes = Buffer.from(base64, "base64");
+		if (bytes.byteLength > 25 * 1024 * 1024) throw new Error("file too large (25MB max)");
+		const dir = join(this.cwd, "attache-uploads");
+		await mkdir(dir, { recursive: true });
+		let target = join(dir, safeName);
+		try {
+			// Don't clobber an existing upload with the same name.
+			const { stat } = await import("node:fs/promises");
+			await stat(target);
+			target = join(dir, `${Date.now()}-${safeName}`);
+		} catch {
+			/* free */
+		}
+		await writeFile(target, bytes);
+		return target;
+	}
+
 	async getSubagents(): Promise<unknown> {
 		const res = await this.proc.request({ type: "get_subagents" });
 		if (!res.success) throw new Error(res.error ?? "get_subagents failed");

@@ -262,11 +262,23 @@ struct BranchPoint: Identifiable, Equatable {
     var preview: String
 }
 
-/// A photo attached in the composer, ready for omp's `images` prompt field.
-struct AttachedImage: Identifiable, Equatable {
+/// Something attached in the composer: photos ride omp's `images` prompt
+/// field; other files are uploaded into the session cwd for the agent to read.
+struct ComposerAttachment: Identifiable, Equatable {
+    enum Kind: Equatable { case image, file }
     var id = UUID()
-    var jpegData: Data
-    var mimeType: String { "image/jpeg" }
+    var kind: Kind
+    var name: String
+    var data: Data
+    var mimeType: String
+
+    static func image(_ jpeg: Data) -> ComposerAttachment {
+        ComposerAttachment(kind: .image, name: "photo.jpg", data: jpeg, mimeType: "image/jpeg")
+    }
+
+    static func file(name: String, data: Data) -> ComposerAttachment {
+        ComposerAttachment(kind: .file, name: name, data: data, mimeType: "application/octet-stream")
+    }
 }
 
 // MARK: - Full-screen diff

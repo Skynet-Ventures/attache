@@ -132,7 +132,7 @@ protocol Engine: AnyObject {
     func start(app: AppModel)
     func refreshSessions()
     func openSession(_ summary: SessionSummary)
-    func send(_ text: String, mode: ComposerMode, role: String, images: [AttachedImage])
+    func send(_ text: String, mode: ComposerMode, role: String, attachments: [ComposerAttachment])
     func dispatchSubagent(task: String)
     func stopTurn()
     func resolveApproval(id: String, verdict: Verdict)
@@ -154,6 +154,10 @@ protocol Engine: AnyObject {
     func testWebhook() async -> Bool
     func startNewSession(cwd: String?, scratch: Bool)
     func wake(mac: String) async -> Bool
+    /// Detach from the current session (omp process stays alive on the bridge).
+    func unpinSession()
+    /// Kill a live session's omp process on the bridge.
+    func stopSession(id: String)
     func diffVerdict(approved: Bool, note: String?)
     func cycleThinking(role: String)
     func setApprovalMode(_ mode: ApprovalModeSetting)

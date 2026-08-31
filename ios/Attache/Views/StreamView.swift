@@ -11,7 +11,9 @@ struct StreamView: View {
     @State private var showSlashSheet = false
     @State private var showBranchSheet = false
     @State private var pickedPhotos: [PhotosPickerItem] = []
-    @State private var attachments: [AttachedImage] = []
+    @State private var attachments: [ComposerAttachment] = []
+    @State private var showPhotosPicker = false
+    @State private var showFileImporter = false
     @FocusState private var composerFocused: Bool
 
     var body: some View {
@@ -192,7 +194,18 @@ struct StreamView: View {
                     }
                 }
                 HStack(spacing: 9) {
-                    PhotosPicker(selection: $pickedPhotos, maxSelectionCount: 4, matching: .images) {
+                    Menu {
+                        Button {
+                            showPhotosPicker = true
+                        } label: {
+                            Label("Photo library", systemImage: "photo")
+                        }
+                        Button {
+                            showFileImporter = true
+                        } label: {
+                            Label("Files", systemImage: "doc")
+                        }
+                    } label: {
                         Text("+")
                             .font(Theme.sans(19, .light))
                             .foregroundStyle(attachments.isEmpty ? Theme.text(0.6) : Theme.accent)
@@ -203,7 +216,15 @@ struct StreamView: View {
                             .overlay(RoundedRectangle(cornerRadius: 9).stroke(attachments.isEmpty ? Theme.hairlineStrong : Theme.accentBorder))
                     }
                     .buttonStyle(.plain)
+                    .photosPicker(isPresented: $showPhotosPicker, selection: $pickedPhotos, maxSelectionCount: 4, matching: .images)
                     .onChange(of: pickedPhotos) { loadPickedPhotos() }
+                    .fileImporter(
+                        isPresented: $showFileImporter,
+                        allowedContentTypes: [.item],
+                        allowsMultipleSelection: true
+                    ) { result in
+                        loadPickedFiles(result)
+                    }
                     HStack(spacing: 8) {
                         TextField("Message omp…", text: $draft, axis: .vertical)
                             .font(Theme.sans(13))
@@ -244,18 +265,33 @@ struct StreamView: View {
     private var attachmentStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 7) {
-                ForEach(attachments) { image in
+                ForEach(attachments) { attachment in
                     ZStack(alignment: .topTrailing) {
-                        if let ui = UIImage(data: image.jpegData) {
+                        if attachment.kind == .image, let ui = UIImage(data: attachment.data) {
                             Image(uiImage: ui)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: 52, height: 52)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineStrong))
+                        } else {
+                            VStack(spacing: 3) {
+                                Image(systemName: "doc")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(Theme.accent)
+                                Text(attachment.name)
+                                    .font(Theme.mono(7.5))
+                                    .foregroundStyle(Theme.text(0.6))
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 6)
+                            .frame(width: 74, height: 52)
+                            .background(Theme.chip)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairlineStrong))
                         }
                         Button {
-                            attachments.removeAll { $0.id == image.id }
+                            attachments.removeAll { $0.id == attachment.id }
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 14))
@@ -285,8 +321,22 @@ struct StreamView: View {
                 let renderer = UIGraphicsImageRenderer(size: target)
                 let scaled = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: target)) }
                 guard let jpeg = scaled.jpegData(compressionQuality: 0.7) else { continue }
-                attachments.append(AttachedImage(jpegData: jpeg))
+                attachments.append(.image(jpeg))
             }
+        }
+    }
+
+    private func loadPickedFiles(_ result: Result<[URL], Error>) {
+        guard case .success(let urls) = result else { return }
+        for url in urls {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url) else { continue }
+            guard data.count <= 25 * 1024 * 1024 else {
+                app.append(.notice("\(url.lastPathComponent) skipped — over the 25MB upload cap"))
+                continue
+            }
+            attachments.append(.file(name: url.lastPathComponent, data: data))
         }
     }
 
@@ -299,7 +349,7 @@ struct StreamView: View {
         showSlashSheet = false
         showRoleSheet = false
         showModelSheet = false
-        app.engine?.send(text, mode: app.composerMode, role: app.composerRole, images: images)
+        app.engine?.send(text, mode: app.composerMode, role: app.composerRole, attachments: images)
     }
 
     private func pickModel(_ model: String) {

@@ -70,6 +70,7 @@ Envelope: `{ id?: string, type: string, ...payload }`.
 | `test_push` | `{}` | sends a test payload to this device's registered target |
 | `get_entries` | `{ sessionId }` | branchable entry ids read from the session jsonl (`{ entries: [{id, role, preview, timestamp}] }`) |
 | `ui_response` | `{ sessionId, requestId, value? \| confirmed? \| cancelled? }` | answer a forwarded extension dialog (omp `ask`, select/confirm/input) |
+| `upload_file` | `{ sessionId, name, data }` | base64 file written to `<cwd>/attache-uploads/` (25MB cap); result `{ path }` — reference it in the next prompt |
 
 ## Server → client events
 

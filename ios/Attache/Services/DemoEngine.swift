@@ -114,10 +114,10 @@ final class DemoEngine: Engine {
 
     // MARK: Chat
 
-    func send(_ text: String, mode: ComposerMode, role: String, images: [AttachedImage] = []) {
+    func send(_ text: String, mode: ComposerMode, role: String, attachments: [ComposerAttachment] = []) {
         guard let app else { return }
         var trimmed = text.trimmingCharacters(in: .whitespaces)
-        if !images.isEmpty { trimmed += " 📎\(images.count)" }
+        if !attachments.isEmpty { trimmed += " 📎\(attachments.count)" }
         guard !trimmed.isEmpty else { return }
         if app.offline {
             app.append(.steer("queued: \"\(trimmed)\" — sends when devbox reconnects"))
@@ -351,6 +351,25 @@ final class DemoEngine: Engine {
     }
 
     func wake(mac: String) async -> Bool { true }
+
+    func unpinSession() {
+        guard let app else { return }
+        app.sessionId = nil
+        app.sessionTitle = ""
+        app.turnActive = false
+        refreshSessions()
+    }
+
+    func stopSession(id: String) {
+        guard let app else { return }
+        if app.sessionId == id { unpinSession() }
+        for i in app.projects.indices {
+            for j in app.projects[i].sessions.indices where app.projects[i].sessions[j].id == id {
+                app.projects[i].sessions[j].status = .idle
+                app.projects[i].sessions[j].live = false
+            }
+        }
+    }
 
     func dispatchSubagent(task: String) {
         guard let app else { return }

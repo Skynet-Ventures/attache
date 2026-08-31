@@ -102,18 +102,24 @@ struct HomeView: View {
         HStack(spacing: 7) {
             Button { app.path.append(.agents) } label: {
                 HStack(spacing: 6) {
-                    BlinkDot(color: Theme.accent, size: 6)
+                    if app.liveAgentCount > 0 {
+                        BlinkDot(color: Theme.accent, size: 6)
+                    } else {
+                        Circle().fill(Theme.text(0.25)).frame(width: 6, height: 6)
+                    }
                     Text("agents \(app.liveAgentCount)")
                         .font(Theme.mono(10.5, .medium))
-                        .foregroundStyle(Theme.text(0.75))
+                        .foregroundStyle(app.liveAgentCount > 0 ? Theme.text(0.75) : Theme.text(0.6))
                 }
                 .chipBackground(border: Theme.hairlineStrong)
             }
             Button { app.path.append(.approvals) } label: {
-                Text("approvals \(app.pendingApprovalCount)")
+                // Warning styling only while something actually needs you.
+                let pending = app.pendingApprovalCount
+                Text("approvals \(pending)")
                     .font(Theme.mono(10.5, .medium))
-                    .foregroundStyle(Theme.warning)
-                    .chipBackground(border: Theme.warning.opacity(0.35))
+                    .foregroundStyle(pending > 0 ? Theme.warning : Theme.text(0.6))
+                    .chipBackground(border: pending > 0 ? Theme.warning.opacity(0.35) : Theme.hairlineStrong)
             }
             Button { app.path.append(.machines) } label: {
                 Text("machines")
@@ -122,7 +128,7 @@ struct HomeView: View {
                     .chipBackground(border: Theme.hairlineStrong)
             }
             Button { app.path.append(.settings) } label: {
-                Text("roles")
+                Text("settings")
                     .font(Theme.mono(10.5, .medium))
                     .foregroundStyle(Theme.text(0.6))
                     .chipBackground(border: Theme.hairlineStrong)
@@ -158,8 +164,12 @@ struct HomeView: View {
 
     // MARK: Pinned cards
 
+    /// Pin only sessions that need attention (running/waiting) or the one
+    /// currently open — an idle smoke test shouldn't squat the pinned slot.
     private var runningSession: SessionSummary? {
-        app.projects.flatMap(\.sessions).first { $0.live && ($0.status == .running || $0.id == app.sessionId) }
+        let all = app.projects.flatMap(\.sessions)
+        return all.first { $0.live && ($0.status == .running || $0.status == .waiting) }
+            ?? all.first { $0.live && $0.id == app.sessionId }
     }
 
     private var pinnedSection: some View {
@@ -185,25 +195,39 @@ struct HomeView: View {
            let a = app.approvals.first(where: { $0.status == .pending && $0.sessionId == app.sessionId }) {
             return "waiting on approval · \(a.command ?? a.tool)"
         }
-        return "editing internal — turn \(app.turnNo)"
+        if app.turnActive { return "agent working · turn \(app.turnNo)" }
+        return "idle · turn \(app.turnNo) — long-press to unpin"
     }
 
     private func runningCard(_ session: SessionSummary) -> some View {
         Button {
-            app.path.append(.stream)
+            if session.id != app.sessionId {
+                app.engine?.openSession(session)
+            } else {
+                app.path.append(.stream)
+            }
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 8) {
-                    BlinkDot(color: Theme.accent, size: 7, glow: true)
+                    if session.status == .running || app.turnActive {
+                        BlinkDot(color: Theme.accent, size: 7, glow: true)
+                    } else if session.status == .waiting {
+                        BlinkDot(color: Theme.warning, size: 7)
+                    } else {
+                        Circle().fill(Theme.text(0.3)).frame(width: 7, height: 7)
+                    }
                     Text(session.title)
                         .font(Theme.sans(14.5, .semibold))
                         .foregroundStyle(Theme.text)
                         .kerning(-0.15)
                         .lineLimit(1)
                     Spacer()
-                    Text("RUNNING")
+                    let badge: (String, Color) = session.status == .waiting
+                        ? ("NEEDS YOU", Theme.warning)
+                        : (session.status == .running || app.turnActive) ? ("RUNNING", Theme.accent) : ("IDLE", Theme.text(0.45))
+                    Text(badge.0)
                         .font(Theme.mono(10, .medium))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(badge.1)
                 }
                 .padding(.bottom, 6)
                 Text(homeStatusLine)
@@ -233,6 +257,20 @@ struct HomeView: View {
             .overlay(RoundedRectangle(cornerRadius: Theme.pinnedRadius).stroke(Theme.accent.opacity(0.35)))
         }
         .buttonStyle(PressableStyle(scale: 0.985))
+        .contextMenu {
+            if session.id == app.sessionId {
+                Button {
+                    app.engine?.unpinSession()
+                } label: {
+                    Label("Unpin (keep omp running)", systemImage: "pin.slash")
+                }
+            }
+            Button(role: .destructive) {
+                app.engine?.stopSession(id: session.id)
+            } label: {
+                Label("Stop omp process", systemImage: "stop.circle")
+            }
+        }
     }
 
     private var planCard: some View {
@@ -296,8 +334,9 @@ struct HomeView: View {
 
     private var projectLists: some View {
         VStack(alignment: .leading, spacing: 0) {
+            let pinnedId = runningSession?.id
             ForEach(app.projects) { project in
-                let rows = project.sessions.filter { $0.id != app.sessionId || !$0.live }
+                let rows = project.sessions.filter { $0.id != pinnedId }
                 if !rows.isEmpty || project.custom {
                     SectionHeader(title: "\(project.name) — \(app.machine.name)")
                         .padding(.horizontal, Theme.gutter)
@@ -605,6 +644,13 @@ private struct SessionRow: View {
                     app.engine?.moveCwd(session.cwd, toProject: nil)
                 } label: {
                     Label("Remove from \(inProject?.name ?? "project")", systemImage: "folder.badge.minus")
+                }
+            }
+            if session.live {
+                Button(role: .destructive) {
+                    app.engine?.stopSession(id: session.id)
+                } label: {
+                    Label("Stop omp process", systemImage: "stop.circle")
                 }
             }
         }

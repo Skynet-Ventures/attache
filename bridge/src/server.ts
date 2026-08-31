@@ -361,6 +361,12 @@ export class BridgeServer {
 				return {};
 			case "get_entries":
 				return { entries: await this.requireSession(cmd).getEntries() };
+
+			case "upload_file": {
+				const session = this.requireSession(cmd);
+				const path = await session.saveUpload(String(cmd.name ?? "upload"), String(cmd.data ?? ""));
+				return { path };
+			}
 			case "compact":
 				await this.requireSession(cmd).compact();
 				return {};
