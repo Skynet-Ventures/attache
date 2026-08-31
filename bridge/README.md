@@ -45,11 +45,26 @@ cat > ~/Library/LaunchAgents/io.skynetventures.attache-bridge.plist <<EOF
     <string>$(pwd)/src/main.ts</string>
     <string>serve</string>
   </array>
+  <key>WorkingDirectory</key><string>$(pwd)</string>
+  <key>EnvironmentVariables</key><dict>
+    <!-- launchd's default PATH can't find omp or bun -->
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key><string>$HOME</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>$HOME/.attache/bridge.log</string>
+  <key>StandardErrorPath</key><string>$HOME/.attache/bridge.err.log</string>
 </dict></plist>
 EOF
-launchctl load ~/Library/LaunchAgents/io.skynetventures.attache-bridge.plist
+launchctl bootstrap gui/\$(id -u) ~/Library/LaunchAgents/io.skynetventures.attache-bridge.plist
+```
+
+Fresh pairing codes are printed to `~/.attache/bridge.log` on each start; restart
+the agent when you need one:
+
+```bash
+launchctl kickstart -k gui/\$(id -u)/io.skynetventures.attache-bridge
 ```
 
 ## Develop
