@@ -20,6 +20,9 @@ targets:
     platform: iOS
     sources:
       - path: Attache
+      - path: Shared
+    dependencies:
+      - target: AttacheWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.skynetventures.attache
@@ -27,6 +30,19 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO
         ENABLE_PREVIEWS: YES
+  AttacheWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AttacheWidgets
+      - path: Shared
+      - path: Attache/Theme/Theme.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.skynetventures.attache.widgets
+        INFOPLIST_FILE: AttacheWidgets/Info.plist
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1"
   AttacheTests:
     type: bundle.unit-test
     platform: iOS

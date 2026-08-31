@@ -101,6 +101,7 @@ final class AppModel {
                 } else if self.turnActive {
                     self.elapsedSec += 1
                 }
+                LiveActivityManager.shared.sync(app: self)
             }
         }
     }

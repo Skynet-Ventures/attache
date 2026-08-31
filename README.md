@@ -76,10 +76,12 @@ your own team.
 | Roles & settings: thinking-level cycling, approval mode (writes omp config) | ✅ |
 | Offline: banner, queued sends, auto-reconnect with backoff | ✅ |
 | Demo mode (no machine needed; App Store review friendly) | ✅ |
+| Custom projects: group session directories under one name, synced via the bridge | ✅ |
+| Live Activity + Dynamic Island (session, status, context bar, approval chip) | ✅ (updates while the app runs) |
 
-Roadmap (see `docs/`): Live Activity + Dynamic Island, APNs push relay for
-fully-suspended delivery, QR pairing, branch-from-turn UI wired to omp entry
-ids, wake-on-LAN, multi-machine switching.
+Roadmap (see `docs/`): APNs push relay for fully-suspended delivery (also
+unlocks push-updated Live Activities), QR pairing, branch-from-turn UI wired
+to omp entry ids, wake-on-LAN, multi-machine switching.
 
 ## Repository layout
 

@@ -195,7 +195,8 @@ final class BridgeEngine: Engine {
         for block in blocks {
             switch block["type"]?.stringValue {
             case "text":
-                guard var text = block["text"]?.stringValue, !text.isEmpty else { continue }
+                guard var text = block["text"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !text.isEmpty else { continue }
                 if role == "user" {
                     if let advisory = extractAdvisory(text) {
                         app.append(.advisor(advisory))
