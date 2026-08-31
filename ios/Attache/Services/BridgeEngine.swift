@@ -717,6 +717,7 @@ final class BridgeEngine: Engine {
             app.typing = true
             app.turnActive = true
             app.turnStartedAt = Date()
+            app.elapsedSec = 0   // ElapsedText adds this to the live clock
         case "turn_start":
             app.turnNo += 1
             if var goal = app.goal, goal.active {
@@ -727,6 +728,11 @@ final class BridgeEngine: Engine {
             if event["isTerminal"]?.boolValue != false {
                 app.typing = false
                 app.turnActive = false
+                // Freeze the turn duration so the header shows the last
+                // turn's time instead of 0m00s once the clock stops.
+                if let start = app.turnStartedAt {
+                    app.elapsedSec = max(0, Int(-start.timeIntervalSinceNow))
+                }
                 app.turnStartedAt = nil
                 streamingItemId = nil
                 NotificationManager.shared.notifyTurnDone(sessionTitle: app.sessionTitle)
@@ -1163,7 +1169,18 @@ final class BridgeEngine: Engine {
                     sessionId: app.sessionId!, app: app
                 )
             } catch {
-                app.append(.notice("send failed: \((error as? BridgeError)?.message ?? "error")"))
+                // Mid-flight failure — the socket died at send time (interface
+                // flip, oversized frame, background race). Convert the
+                // optimistic user bubble into a queued item so nothing is
+                // lost; it flushes automatically after reconnect.
+                if let idx = app.items.lastIndex(where: {
+                    if case .user(let t) = $0.kind { return t == prefix + trimmed + attachNote }
+                    return false
+                }) {
+                    app.items.remove(at: idx)
+                }
+                self.enqueuePrompt(text: trimmed, mode: mode, role: role, attachments: attachments)
+                app.append(.notice("connection blipped — message queued, sends on reconnect"))
             }
         }
     }

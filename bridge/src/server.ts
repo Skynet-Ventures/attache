@@ -86,6 +86,10 @@ export class BridgeServer {
 				// reading client must never be culled as "idle" (it caused
 				// 2-minute offline/online flapping).
 				idleTimeout: 960,
+				// upload_file allows 25MB files, which is ~33MB as base64 inside
+				// a WS frame — Bun's 16MB default silently killed the socket,
+				// which the app experienced as a phantom "connection lost".
+				maxPayloadLength: 64 * 1024 * 1024,
 			},
 		});
 
