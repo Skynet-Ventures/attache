@@ -34,6 +34,20 @@ final class DemoEngine: Engine {
         app.subagents = Self.initialAgents()
         app.focusedAgentId = "reviewer"
         app.plan = Self.initialPlan()
+        app.todoPhases = [
+            TodoPhase(name: "Audit", tasks: [
+                TodoTask(content: "Map JSON schemas and empty fields", status: "completed"),
+                TodoTask(content: "Map pages and data loaders", status: "completed"),
+                TodoTask(content: "Identify authoritative source coverage", status: "in_progress"),
+            ]),
+            TodoPhase(name: "Data", tasks: [
+                TodoTask(content: "Backfill benchmark rows", status: "pending"),
+                TodoTask(content: "Verify region coverage", status: "pending"),
+            ]),
+            TodoPhase(name: "Verification", tasks: [
+                TodoTask(content: "Cross-check against sources", status: "pending"),
+            ]),
+        ]
         app.roles = Self.initialRoles()
         app.availableCommands = Self.demoCommands
         app.hubFeed = Self.initialHubFeed()
@@ -393,6 +407,32 @@ final class DemoEngine: Engine {
         }
     }
 
+    func dispatchSubagent(task: String, isolated: Bool) {
+        dispatchSubagent(task: task)
+    }
+
+    func viewSubagentPatch(id: String) {
+        guard let app else { return }
+        app.diff = DiffScreenModel(
+            fileName: "\(id).patch",
+            directory: "isolated subagent changes · captured by omp",
+            addCount: 11, delCount: 3, hashline: "",
+            lines: [
+                DiffLine(kind: .hunk, text: "@@ -12,9 +12,16 @@ package resize"),
+                DiffLine(kind: .add, text: "+const maxRetained = 1 << 20 // 1 MiB"),
+                DiffLine(kind: .context, text: " var bufPool = sync.Pool{"),
+                DiffLine(kind: .add, text: "+  if b.Cap() > maxRetained { return }"),
+                DiffLine(kind: .context, text: "   b.Reset()"),
+            ],
+            footer: "review sends feedback to the primary agent"
+        )
+        app.path.append(.diff)
+    }
+
+    func setTaskIsolation(_ mode: String) {
+        app?.taskIsolationLabel = mode
+    }
+
     func dispatchSubagent(task: String) {
         guard let app else { return }
         let name = "agent-\(app.subagents.count + 1)"
@@ -741,7 +781,9 @@ final class DemoEngine: Engine {
                 transcript: [
                     SubagentLine(kind: .tool, text: "read internal/resize/pool.go", meta: "0.4s"),
                     SubagentLine(kind: .text, text: "Public API unchanged. One concern: maxRetained is package-private — loadgen tests can't tune it. Consider exporting a setter or build tag."),
-                ]
+                ],
+                hasPatch: true, patchBytes: 4210,
+                isolationLabel: "⑂ omp/task/7f31 · apfs"
             ),
             SubagentModel(
                 id: "librarian", name: "librarian", status: .done,

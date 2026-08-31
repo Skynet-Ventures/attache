@@ -94,6 +94,27 @@ export async function getEnabledModels(): Promise<string[]> {
  * Real values for the settings screen's environment rows: MCP servers,
  * skills, extensions, compaction, and any configured fallback chains.
  */
+export const TASK_ISOLATION_MODES = [
+	"none", "auto", "apfs", "btrfs", "zfs", "reflink",
+	"overlayfs", "projfs", "block-clone", "rcopy",
+] as const;
+
+export async function getTaskIsolationMode(): Promise<string> {
+	const config = await readConfig();
+	return String(config.task?.isolation?.mode ?? "none");
+}
+
+export async function setTaskIsolationMode(mode: string): Promise<void> {
+	if (!TASK_ISOLATION_MODES.includes(mode as (typeof TASK_ISOLATION_MODES)[number])) {
+		throw new Error(`invalid isolation mode: ${mode}`);
+	}
+	const config = await readConfig();
+	config.task ??= {};
+	config.task.isolation ??= {};
+	config.task.isolation.mode = mode;
+	await writeConfig(config);
+}
+
 export async function getOmpSummary(): Promise<Record<string, unknown>> {
 	const config = await readConfig();
 	const agentDir = ompAgentDir();
@@ -136,5 +157,6 @@ export async function getOmpSummary(): Promise<Record<string, unknown>> {
 		},
 		fallbacks,
 		hindsight: config.hindsight?.enabled ?? config.memory?.enabled ?? null,
+		taskIsolation: String(config.task?.isolation?.mode ?? "none"),
 	};
 }

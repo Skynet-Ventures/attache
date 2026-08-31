@@ -205,6 +205,11 @@ struct SubagentModel: Identifiable, Equatable {
     var meta: String          // "2m14s · 8.1k tok · 12 calls"
     var handle: String        // "agent://b2c9"
     var transcript: [SubagentLine]
+    /// Isolated runs leave a reviewable patch artifact on the bridge.
+    var hasPatch = false
+    var patchBytes = 0
+    /// Worktree/branch/backend metadata when the run is isolated ("⑂ omp/task/xk2 · apfs").
+    var isolationLabel: String?
 }
 
 struct SubagentLine: Identifiable, Equatable {
@@ -224,6 +229,38 @@ struct PlanStepModel: Identifiable, Equatable {
     var file: String
     var risk: RiskLevel
     var mark: Mark = .pending
+}
+
+// MARK: - Todo tree (omp's phase/task plan-of-record)
+
+struct TodoTask: Identifiable, Equatable {
+    var id = UUID()
+    var content: String
+    var status: String        // pending | in_progress | completed
+    var mark: String {
+        switch status {
+        case "completed": "✓"
+        case "in_progress": "●"
+        default: "□"
+        }
+    }
+}
+
+struct TodoPhase: Identifiable, Equatable {
+    var id = UUID()
+    var name: String
+    var tasks: [TodoTask]
+    var doneCount: Int { tasks.filter { $0.status == "completed" }.count }
+    var isActive: Bool { tasks.contains { $0.status == "in_progress" } }
+}
+
+extension Array where Element == TodoPhase {
+    var totalTasks: Int { reduce(0) { $0 + $1.tasks.count } }
+    var totalDone: Int { reduce(0) { $0 + $1.doneCount } }
+    /// The phase to headline: first with an in-progress task, else first unfinished.
+    var headline: TodoPhase? {
+        first { $0.isActive } ?? first { $0.doneCount < $0.tasks.count } ?? last
+    }
 }
 
 struct PlanModel: Equatable {

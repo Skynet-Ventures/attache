@@ -355,7 +355,59 @@ export class LiveSession {
 	async getSubagents(): Promise<unknown> {
 		const res = await this.proc.request({ type: "get_subagents" });
 		if (!res.success) throw new Error(res.error ?? "get_subagents failed");
-		return res.data;
+		return this.enrichSubagents(res.data);
+	}
+
+	/** Session artifacts directory (sibling dir named after the jsonl stem). */
+	private artifactsDir(): string | null {
+		const file = this.state?.sessionFile;
+		if (!file || !file.endsWith(".jsonl")) return null;
+		return file.slice(0, -".jsonl".length);
+	}
+
+	/**
+	 * Attach disk-derived extras to omp's registry snapshot: whether an
+	 * isolated run left a reviewable `<id>.patch`, plus any worktree/branch
+	 * metadata omp included. Unknown shapes pass through untouched.
+	 */
+	private async enrichSubagents(data: unknown): Promise<unknown> {
+		const dir = this.artifactsDir();
+		const list = Array.isArray(data)
+			? data
+			: (data as { subagents?: unknown[] })?.subagents;
+		if (!dir || !Array.isArray(list)) return data;
+		const { stat } = await import("node:fs/promises");
+		const { join, basename } = await import("node:path");
+		for (const entry of list as Array<Record<string, unknown>>) {
+			const id = String(entry.id ?? entry.subagentId ?? entry.name ?? "");
+			if (!id) continue;
+			const safe = basename(id);
+			try {
+				const s = await stat(join(dir, `${safe}.patch`));
+				if (s.size > 0) {
+					entry.hasPatch = true;
+					entry.patchBytes = s.size;
+				}
+			} catch {
+				/* no patch artifact — not isolated or branch-mode merge */
+			}
+		}
+		return data;
+	}
+
+	/** Contents of an isolated subagent's captured patch, for diff review. */
+	async getSubagentPatch(subagentId: string): Promise<{ patch: string; bytes: number }> {
+		const dir = this.artifactsDir();
+		if (!dir) throw new Error("session file unknown");
+		const { basename, join } = await import("node:path");
+		const path = join(dir, `${basename(subagentId)}.patch`);
+		const file = Bun.file(path);
+		if (!(await file.exists())) throw new Error(`no patch artifact for ${subagentId}`);
+		if (file.size > 4 * 1024 * 1024) {
+			const text = await file.text();
+			return { patch: `${text.slice(0, 4 * 1024 * 1024)}\n… (truncated)`, bytes: file.size };
+		}
+		return { patch: await file.text(), bytes: file.size };
 	}
 
 	async getSubagentMessages(subagentId: string, fromByte?: number): Promise<unknown> {

@@ -100,7 +100,63 @@ struct PlanView: View {
         .overlay(RoundedRectangle(cornerRadius: 11).stroke(Theme.hairline))
     }
 
+    private static let numerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+
+    /// Steps grouped by their phase (`step.file` carries the phase name when
+    /// the plan mirrors omp's todoPhases). Single-phase plans render flat.
     private func stepsCard(_ plan: PlanModel) -> some View {
+        let phaseNames = plan.steps.map(\.file).reduce(into: [String]()) { acc, name in
+            if acc.last != name { acc.append(name) }
+        }
+        let grouped = phaseNames.count > 1 && Set(phaseNames).count == phaseNames.count
+        return VStack(spacing: 0) {
+            if grouped {
+                ForEach(Array(phaseNames.enumerated()), id: \.offset) { pIdx, phaseName in
+                    let phaseSteps = plan.steps.filter { $0.file == phaseName }
+                    let done = phaseSteps.filter { $0.mark == .done }.count
+                    HStack(spacing: 7) {
+                        Text("\(Self.numerals[safe: pIdx] ?? "\(pIdx + 1)"). \(phaseName)")
+                            .font(Theme.mono(10, .semibold))
+                            .foregroundStyle(phaseSteps.contains { $0.mark == .active } ? Theme.accent : Theme.text(0.65))
+                        Text("· \(done)/\(phaseSteps.count)")
+                            .font(Theme.mono(9.5))
+                            .foregroundStyle(Theme.textFaint)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 13)
+                    .padding(.top, pIdx == 0 ? 10 : 12)
+                    .padding(.bottom, 4)
+                    ForEach(phaseSteps) { step in
+                        HStack(spacing: 10) {
+                            Text(markSymbol(step.mark))
+                                .font(Theme.mono(10, .medium))
+                                .foregroundStyle(markColor(step.mark))
+                                .frame(width: 12)
+                            Text(step.title)
+                                .font(Theme.sans(12))
+                                .foregroundStyle(step.mark == .done ? Theme.text(0.5) : Theme.text)
+                                .strikethrough(step.mark == .done, color: Theme.text(0.3))
+                                .lineLimit(2)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 5)
+                        .padding(.leading, 10)
+                    }
+                    if pIdx == phaseNames.count - 1 {
+                        Color.clear.frame(height: 8)
+                    }
+                }
+            } else {
+                flatSteps(plan)
+            }
+        }
+        .background(Theme.raisedAlt)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairlineFaint))
+    }
+
+    private func flatSteps(_ plan: PlanModel) -> some View {
         VStack(spacing: 0) {
             ForEach(Array(plan.steps.enumerated()), id: \.element.id) { idx, step in
                 HStack(spacing: 10) {
@@ -130,9 +186,7 @@ struct PlanView: View {
                 }
             }
         }
-        .background(Theme.raisedAlt)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairlineFaint))
+        // Container chrome applied by stepsCard.
     }
 
     @ViewBuilder

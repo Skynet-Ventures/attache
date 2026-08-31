@@ -16,7 +16,7 @@ import { Push } from "./push";
 import { LiveSession } from "./sessions/live";
 import { groupByProject, listStoredSessions, readSessionEntries, searchStoredSessions } from "./sessions/store";
 import { getCostSummary } from "./sessions/cost";
-import { getApprovalMode, getEnabledModels, getOmpSummary, getRoles, setApprovalModeGlobal, setRole } from "./config";
+import { getApprovalMode, getEnabledModels, getOmpSummary, getRoles, setApprovalModeGlobal, setRole, setTaskIsolationMode } from "./config";
 import { sendMagicPacket } from "./wol";
 import {
 	PROTOCOL_VERSION,
@@ -476,6 +476,8 @@ export class BridgeServer {
 					throw err;
 				}
 			}
+			case "get_subagent_patch":
+				return this.requireSession(cmd).getSubagentPatch(String(cmd.subagentId ?? ""));
 			case "get_subagents":
 				return this.requireSession(cmd).getSubagents();
 			case "get_subagent_messages":
@@ -525,6 +527,10 @@ export class BridgeServer {
 				return { roles: await getRoles() };
 			case "get_omp_summary":
 				return await getOmpSummary();
+			case "set_task_isolation":
+				await setTaskIsolationMode(String(cmd.mode ?? ""));
+				this.broadcast({ type: "sessions_changed" });
+				return {};
 			case "get_cost_summary":
 				return await getCostSummary({
 					days: cmd.days as number | undefined,

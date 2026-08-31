@@ -89,6 +89,8 @@ final class AppModel {
 
     // MARK: Plan / diff
     var plan: PlanModel?
+    /// Raw omp todo phases for the stream's collapsible TODO tree.
+    var todoPhases: [TodoPhase] = []
     var diff: DiffScreenModel?
 
     // MARK: Roles & settings
@@ -96,6 +98,8 @@ final class AppModel {
     var enabledModels: [String] = []
     var fallbackChain: [String] = []
     var snapcompactLabel = ""
+    var taskIsolationLabel = "none"
+    static let isolationModes = ["none", "auto", "apfs", "btrfs", "zfs", "reflink", "overlayfs", "projfs", "block-clone", "rcopy"]
     var webhookURL: String = UserDefaults.standard.string(forKey: "push.webhook") ?? ""
     var approvalMode: ApprovalModeSetting = .write
     var hindsightEnabled = true
@@ -195,6 +199,12 @@ protocol Engine: AnyObject {
     func openSession(_ summary: SessionSummary)
     func send(_ text: String, mode: ComposerMode, role: String, attachments: [ComposerAttachment])
     func dispatchSubagent(task: String)
+    /// Dispatch requesting an isolated workspace for the worker.
+    func dispatchSubagent(task: String, isolated: Bool)
+    /// Load an isolated subagent's patch artifact into the diff screen.
+    func viewSubagentPatch(id: String)
+    /// Write task.isolation.mode to omp's global config.
+    func setTaskIsolation(_ mode: String)
     func stopTurn()
     func resolveApproval(id: String, verdict: Verdict)
     /// Resolve an approval with an always-allow scope (contract F). Pass

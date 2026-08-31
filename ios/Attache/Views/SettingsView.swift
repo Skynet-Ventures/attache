@@ -189,6 +189,37 @@ struct SettingsView: View {
             Divider().overlay(Theme.hairlineFaint)
             settingRow("Snapcompact", value: app.snapcompactLabel.isEmpty ? "—" : app.snapcompactLabel)
             Divider().overlay(Theme.hairlineFaint)
+            HStack {
+                Text("Task isolation")
+                    .font(Theme.sans(12.5))
+                    .foregroundStyle(Theme.text)
+                Spacer()
+                Menu {
+                    ForEach(AppModel.isolationModes, id: \.self) { mode in
+                        Button {
+                            app.engine?.setTaskIsolation(mode)
+                        } label: {
+                            if mode == app.taskIsolationLabel {
+                                Label(mode, systemImage: "checkmark")
+                            } else {
+                                Text(mode)
+                            }
+                        }
+                    }
+                } label: {
+                    Text("\(app.taskIsolationLabel) ▾")
+                        .font(Theme.mono(10.5, .medium))
+                        .foregroundStyle(Theme.text(0.7))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Theme.codeBlock)
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Theme.hairlineStrong))
+                }
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 10)
+            Divider().overlay(Theme.hairlineFaint)
             Button {
                 app.path.append(.rules)
             } label: {

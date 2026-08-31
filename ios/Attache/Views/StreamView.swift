@@ -17,6 +17,7 @@ struct StreamView: View {
     @State private var showRenameAlert = false
     @State private var renameText = ""
     @State private var showStatsSheet = false
+    @State private var todoExpanded = false
     @State private var sessionAction: SessionActionMode?
     @State private var exporting = false
     @State private var shareItem: ShareURLItem?
@@ -203,6 +204,9 @@ struct StreamView: View {
                 }
                 .padding(.horizontal, Theme.streamGutter)
                 .padding(.bottom, 9)
+            }
+            if !app.todoPhases.isEmpty {
+                TodoTreeChip(expanded: $todoExpanded)
             }
         }
         .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.hairline), alignment: .bottom)
@@ -1439,5 +1443,96 @@ struct ElapsedText: View {
             seconds = app.elapsedSec
         }
         return "\(seconds / 60)m\(String(format: "%02d", seconds % 60))s"
+    }
+}
+
+/// The omp todo tree as a compact header chip: collapsed it headlines the
+/// active phase with counts; expanded it mirrors the TUI's phase/task tree.
+struct TodoTreeChip: View {
+    @Environment(AppModel.self) private var app
+    @Binding var expanded: Bool
+
+    private static let numerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeOut(duration: 0.18)) { expanded.toggle() }
+            } label: {
+                HStack(spacing: 7) {
+                    Text("TODO")
+                        .font(Theme.mono(9, .semibold))
+                        .tracking(1)
+                        .foregroundStyle(Theme.accent)
+                    if let phase = app.todoPhases.headline {
+                        Text("\(phaseLabel(phase)) · \(phase.doneCount)/\(phase.tasks.count)")
+                            .font(Theme.mono(9.5))
+                            .foregroundStyle(Theme.text(0.6))
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    Text("\(app.todoPhases.totalDone)/\(app.todoPhases.totalTasks)")
+                        .font(Theme.mono(9.5))
+                        .foregroundStyle(Theme.textFaint)
+                    Text(expanded ? "▴" : "▾")
+                        .font(Theme.mono(9))
+                        .foregroundStyle(Theme.textFaint)
+                }
+                .padding(.horizontal, Theme.streamGutter)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if expanded {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 7) {
+                        ForEach(Array(app.todoPhases.enumerated()), id: \.element.id) { idx, phase in
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 7) {
+                                    Text("\(Self.numerals[safe: idx] ?? "\(idx + 1)"). \(phase.name)")
+                                        .font(Theme.mono(10, .semibold))
+                                        .foregroundStyle(phase.isActive ? Theme.accent : Theme.text(0.75))
+                                    Text("· \(phase.doneCount)/\(phase.tasks.count)")
+                                        .font(Theme.mono(9.5))
+                                        .foregroundStyle(Theme.textFaint)
+                                }
+                                ForEach(phase.tasks) { task in
+                                    HStack(alignment: .top, spacing: 7) {
+                                        Text(task.mark)
+                                            .font(Theme.mono(9.5))
+                                            .foregroundStyle(
+                                                task.status == "completed" ? Theme.success
+                                                : task.status == "in_progress" ? Theme.accent
+                                                : Theme.text(0.35)
+                                            )
+                                        Text(task.content)
+                                            .font(Theme.mono(9.5))
+                                            .foregroundStyle(
+                                                task.status == "completed" ? Theme.text(0.4) : Theme.text(0.7)
+                                            )
+                                            .strikethrough(task.status == "completed", color: Theme.text(0.3))
+                                            .lineLimit(2)
+                                    }
+                                    .padding(.leading, 10)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, Theme.streamGutter)
+                    .padding(.bottom, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 240)
+            }
+        }
+        .background(Theme.raisedAlt.opacity(expanded ? 1 : 0.6))
+        .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.hairlineFaint), alignment: .top)
+    }
+
+    private func phaseLabel(_ phase: TodoPhase) -> String {
+        if let idx = app.todoPhases.firstIndex(where: { $0.id == phase.id }) {
+            return "\(Self.numerals[safe: idx] ?? "\(idx + 1)"). \(phase.name)"
+        }
+        return phase.name
     }
 }

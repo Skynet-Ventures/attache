@@ -33,11 +33,17 @@ struct AgentsView: View {
                 let task = dispatchTask.trimmingCharacters(in: .whitespaces)
                 dispatchTask = ""
                 guard !task.isEmpty else { return }
-                app.engine?.dispatchSubagent(task: task)
+                app.engine?.dispatchSubagent(task: task, isolated: false)
+            }
+            Button("Dispatch isolated") {
+                let task = dispatchTask.trimmingCharacters(in: .whitespaces)
+                dispatchTask = ""
+                guard !task.isEmpty else { return }
+                app.engine?.dispatchSubagent(task: task, isolated: true)
             }
             Button("Cancel", role: .cancel) { dispatchTask = "" }
         } message: {
-            Text("Asks the primary agent to spin up a task-tool subagent for this.")
+            Text("Asks the primary agent to spin up a task-tool subagent for this. Isolated runs work in a snapshot workspace and leave a reviewable patch.")
         }
     }
 
@@ -95,9 +101,23 @@ struct AgentsView: View {
                             .font(Theme.mono(12.5, .semibold))
                             .foregroundStyle(Theme.text)
                         Spacer()
-                        Text("\(agent.handle) · task model")
-                            .font(Theme.mono(9.5))
-                            .foregroundStyle(Theme.text(0.4))
+                        if agent.hasPatch {
+                            Button {
+                                app.engine?.viewSubagentPatch(id: agent.id)
+                            } label: {
+                                Text("review patch ▸\(agent.patchBytes > 0 ? " \(patchSizeLabel(agent.patchBytes))" : "")")
+                                    .font(Theme.mono(9.5, .medium))
+                                    .foregroundStyle(Theme.accent)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(Theme.accentBorder))
+                            }
+                            .buttonStyle(PressableStyle(scale: 0.94))
+                        } else {
+                            Text("\(agent.handle) · task model")
+                                .font(Theme.mono(9.5))
+                                .foregroundStyle(Theme.text(0.4))
+                        }
                     }
                     .padding(.bottom, 10)
                     ScrollView {
@@ -146,6 +166,10 @@ struct AgentsView: View {
         }
     }
 
+    private func patchSizeLabel(_ bytes: Int) -> String {
+        bytes >= 1024 ? "\(bytes / 1024)kb" : "\(bytes)b"
+    }
+
     private func sendSteer() {
         guard let agent = app.focusedAgent else { return }
         let text = steerDraft.trimmingCharacters(in: .whitespaces)
@@ -181,6 +205,16 @@ private struct AgentTile: View {
                 .foregroundStyle(Theme.textFaint)
                 .lineLimit(1)
                 .padding(.top, 7)
+            if let isolation = agent.isolationLabel {
+                Text(isolation)
+                    .font(Theme.mono(8.5, .medium))
+                    .foregroundStyle(Theme.text(0.55))
+                    .lineLimit(1)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.14)))
+                    .padding(.top, 6)
+            }
         }
         .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)

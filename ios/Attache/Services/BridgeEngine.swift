@@ -229,6 +229,9 @@ final class BridgeEngine: Engine {
                     let pct = Int((snap["threshold"]?.doubleValue ?? 0.85) * 100)
                     app.snapcompactLabel = (snap["enabled"]?.boolValue ?? true) ? "auto @ \(pct)%" : "off"
                 }
+                if let isolation = summary["taskIsolation"]?.stringValue {
+                    app.taskIsolationLabel = isolation
+                }
                 if let fallbacks = summary["fallbacks"]?.objectValue,
                    let chain = fallbacks["default"]?.arrayValue ?? fallbacks.values.first?.arrayValue {
                     app.fallbackChain = chain.compactMap {
@@ -697,6 +700,19 @@ final class BridgeEngine: Engine {
     /// screen so live sessions get the same review surface as the demo.
     private func applyPlanFromTodos(_ phases: JSONValue?) {
         guard let app else { return }
+        // Raw phase tree for the stream's TODO chip.
+        let parsed: [TodoPhase] = (phases?.arrayValue ?? []).compactMap { phase in
+            let tasks: [TodoTask] = (phase["tasks"]?.arrayValue ?? []).compactMap { task in
+                guard let content = task["content"]?.stringValue else { return nil }
+                return TodoTask(content: content, status: task["status"]?.stringValue ?? "pending")
+            }
+            guard !tasks.isEmpty else { return nil }
+            return TodoPhase(name: phase["name"]?.stringValue ?? "Plan", tasks: tasks)
+        }
+        if parsed.map({ "\($0.name)|\($0.tasks.map(\.status).joined())|\($0.tasks.map(\.content).joined())" })
+            != app.todoPhases.map({ "\($0.name)|\($0.tasks.map(\.status).joined())|\($0.tasks.map(\.content).joined())" }) {
+            app.todoPhases = parsed
+        }
         let allTasks: [(phase: String, content: String, status: String)] = (phases?.arrayValue ?? []).flatMap { phase in
             (phase["tasks"]?.arrayValue ?? []).compactMap { task in
                 guard let content = task["content"]?.stringValue else { return nil }
@@ -1127,6 +1143,20 @@ final class BridgeEngine: Engine {
                 )
                 model.status = status
                 model.lastLine = entry["lastLine"]?.stringValue ?? entry["title"]?.stringValue ?? model.lastLine
+                // Bridge-enriched patch artifact info (isolated patch-mode runs).
+                model.hasPatch = entry["hasPatch"]?.boolValue ?? false
+                model.patchBytes = entry["patchBytes"]?.intValue ?? 0
+                // Worktree/branch/backend metadata, whichever keys omp provides.
+                let branch = entry["branch"]?.stringValue
+                    ?? entry["worktreeBranch"]?.stringValue
+                    ?? entry["worktree"]?["branch"]?.stringValue
+                let backend = entry["isolation"]?.stringValue
+                    ?? entry["isolationBackend"]?.stringValue
+                    ?? entry["worktree"]?["backend"]?.stringValue
+                model.isolationLabel = [branch.map { "⑂ \($0)" }, backend]
+                    .compactMap { $0 }.joined(separator: " · ").isEmpty
+                    ? nil
+                    : [branch.map { "⑂ \($0)" }, backend].compactMap { $0 }.joined(separator: " · ")
                 models.append(model)
                 subagentsById[id] = model
                 await self.loadSubagentTranscript(id: id)
@@ -1326,7 +1356,59 @@ final class BridgeEngine: Engine {
     }
 
     func dispatchSubagent(task: String) {
-        send("Dispatch a subagent (task tool) for: \(task)", mode: .chat, role: app?.composerRole ?? "default")
+        dispatchSubagent(task: task, isolated: false)
+    }
+
+    func dispatchSubagent(task: String, isolated: Bool) {
+        let suffix = isolated
+            ? " Run it in an isolated workspace (task tool with isolated: true) so its changes land as a reviewable patch."
+            : ""
+        send("Dispatch a subagent (task tool) for: \(task)\(suffix)", mode: .chat, role: app?.composerRole ?? "default")
+    }
+
+    func viewSubagentPatch(id: String) {
+        Task { [weak self] in
+            guard let self, let client = self.client, let app = self.app,
+                  let sessionId = app.sessionId else { return }
+            do {
+                let data = try await client.send("get_subagent_patch", ["sessionId": sessionId, "subagentId": id])
+                let text = data["patch"]?.stringValue ?? ""
+                var card = ToolCardModel(
+                    icon: "±", iconIsAccent: true, verb: "edit", subject: "\(id).patch",
+                    meta: "", detailLines: [], footer: "", addCount: nil, delCount: nil, hashline: nil
+                )
+                Self.applyDiffIfPresent(&card, output: text)
+                if card.detailLines.isEmpty {
+                    card.detailLines = text.split(separator: "\n").prefix(400).map {
+                        DiffLine(kind: .context, text: String($0.prefix(160)))
+                    }
+                }
+                app.diff = DiffScreenModel(
+                    fileName: "\(id).patch",
+                    directory: "isolated subagent changes · captured by omp",
+                    addCount: card.addCount ?? 0,
+                    delCount: card.delCount ?? 0,
+                    hashline: "",
+                    lines: card.detailLines,
+                    footer: "review sends feedback to the primary agent"
+                )
+                app.path.append(.diff)
+            } catch {
+                app.append(.notice("patch unavailable: \((error as? BridgeError)?.message ?? "error")"))
+            }
+        }
+    }
+
+    func setTaskIsolation(_ mode: String) {
+        Task { [weak self] in
+            guard let self, let client = self.client, let app = self.app else { return }
+            do {
+                try await client.send("set_task_isolation", ["mode": mode])
+                app.taskIsolationLabel = mode
+            } catch {
+                app.append(.notice("isolation change failed: \((error as? BridgeError)?.message ?? "error")"))
+            }
+        }
     }
 
     func stopTurn() {
