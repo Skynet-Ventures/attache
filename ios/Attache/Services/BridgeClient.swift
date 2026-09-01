@@ -303,6 +303,10 @@ final class BridgeClient {
             Task { @MainActor in self.noteClosedByServer() }
         }
         let task = session.webSocketTask(with: url)
+        // Default is 1MB; a large transcript page (or the bridge's on-disk
+        // fallback) can exceed it, which kills the receive and leaves the
+        // stream stuck on "loading transcript". Match the bridge's 64MB cap.
+        task.maximumMessageSize = 64 * 1024 * 1024
         self.task = task
         task.resume()
         receiveLoop(task)

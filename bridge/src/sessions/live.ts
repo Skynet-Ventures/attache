@@ -30,6 +30,31 @@ import type {
 } from "../types";
 
 /**
+ * Cap individual text blocks in history payloads. Tool results (build logs,
+ * test output) can run to hundreds of KB per message; the app renders only an
+ * excerpt, and an untrimmed full-transcript frame can blow past the client's
+ * websocket message-size limit — which surfaces as a transcript that never
+ * loads. Live streaming events are not trimmed, only history reads.
+ */
+const WIRE_TEXT_CAP = 32_768;
+
+export function trimMessageForWire(entry: unknown): unknown {
+	const e = entry as { message?: { content?: unknown[] } };
+	const content = e?.message?.content;
+	if (!Array.isArray(content)) return entry;
+	let changed = false;
+	const trimmed = content.map(block => {
+		const b = block as { text?: unknown };
+		if (typeof b?.text !== "string" || b.text.length <= WIRE_TEXT_CAP) return block;
+		changed = true;
+		const dropped = b.text.length - WIRE_TEXT_CAP;
+		return { ...(block as object), text: `${b.text.slice(0, WIRE_TEXT_CAP)}\n… [${dropped} chars truncated for transport]` };
+	});
+	if (!changed) return entry;
+	return { ...(entry as object), message: { ...e.message, content: trimmed } };
+}
+
+/**
  * The subset of OmpProcess the session uses — injectable in tests so the
  * session's approval/forwarding behavior can be exercised with a stub.
  */
@@ -268,7 +293,7 @@ export class LiveSession {
 		};
 		const result = await drainMessages({ fetchPage, startCursor: inputCursor, ...overrides });
 		if (!result.ok) throw new ProtocolError(result.error, `history unavailable: ${result.error}`);
-		return { messages: result.messages, totalMessages: result.totalMessages };
+		return { messages: result.messages.map(trimMessageForWire), totalMessages: result.totalMessages };
 	}
 
 	/**
@@ -319,7 +344,7 @@ export class LiveSession {
 		const messages: unknown[] = [];
 		for (let cur = leaf; cur; cur = cur.parentId ? (byId.get(cur.parentId) ?? null) : null) {
 			if (cur.type === "message" && cur.message) {
-				messages.push({ id: cur.id, message: cur.message });
+				messages.push(trimMessageForWire({ id: cur.id, message: cur.message }));
 			}
 			if (messages.length >= maxMessages) break;
 		}
