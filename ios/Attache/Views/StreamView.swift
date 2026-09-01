@@ -467,19 +467,43 @@ struct StreamView: View {
                             .lineLimit(1)
                     }
                     .buttonStyle(.plain)
-                    Button {
-                        app.engine?.setFastMode(!app.fastModeActive)
+                    Menu {
+                        Section("Reasoning") {
+                            ForEach(ThinkingLevel.allCases, id: \.self) { level in
+                                Button {
+                                    app.engine?.setThinkingLevel(level)
+                                } label: {
+                                    if level == app.sessionThinking {
+                                        Label(level.rawValue, systemImage: "checkmark")
+                                    } else {
+                                        Text(level.rawValue)
+                                    }
+                                }
+                            }
+                        }
+                        Divider()
+                        Button {
+                            app.engine?.setFastMode(!app.fastModeActive)
+                        } label: {
+                            if app.fastModeActive {
+                                Label("⚡ fast mode", systemImage: "checkmark")
+                            } else {
+                                Text("⚡ fast mode")
+                            }
+                        }
                     } label: {
-                        Text("⚡ fast")
+                        Text("T:\(app.sessionThinking.rawValue)\(app.fastModeActive ? " ⚡" : "") ▾")
                             .font(Theme.mono(10, .medium))
                             .foregroundStyle(app.fastModeActive ? Theme.warning : Theme.text(0.6))
+                            .lineLimit(1)
+                            .fixedSize()
                             .padding(.horizontal, 8)
                             .frame(height: 24)
                             .background(Theme.chip)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                             .overlay(RoundedRectangle(cornerRadius: 6).stroke(app.fastModeActive ? Theme.warning.opacity(0.5) : Theme.hairlineStrong))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressableStyle(scale: 0.94))
                     Button {
                         withAnimation { showSlashSheet.toggle(); showRoleSheet = false; showModelSheet = false; showBranchSheet = false }
                     } label: {

@@ -68,6 +68,10 @@ final class AppModel {
     /// omp fast mode (snappier turns) for the active session — mirrors the
     /// per-session `fastModeActive` reported by session_state.
     var fastModeActive = false
+    /// Live per-session reasoning level — mirrors `thinkingLevel` from
+    /// session_state (distinct from the role default, which is config-level
+    /// and applies to new sessions only).
+    var sessionThinking: ThinkingLevel = .medium
 
     // MARK: Queue modes (contract C) — render only; mutated via the session
     // settings sheet and mirrored from session_state.
@@ -255,6 +259,8 @@ protocol Engine: AnyObject {
     func fetchSessionStats() async -> [SessionStatRow]
     /// Toggle omp fast mode for the active session (bridge `set_fast_mode`).
     func setFastMode(_ enabled: Bool)
+    /// Set the live session's reasoning level (bridge `set_thinking_level`).
+    func setThinkingLevel(_ level: ThinkingLevel)
     /// Remove one persisted offline-queued prompt (swipe-delete in the stream).
     func removeQueuedPrompt(id: String)
 

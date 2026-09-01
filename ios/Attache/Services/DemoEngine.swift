@@ -500,6 +500,12 @@ final class DemoEngine: Engine {
         app.append(.steer(enabled ? "fast mode on — snappier turns" : "fast mode off"))
     }
 
+    func setThinkingLevel(_ level: ThinkingLevel) {
+        guard let app else { return }
+        app.sessionThinking = level
+        app.append(.steer("thinking → \(level.rawValue)"))
+    }
+
     func removeQueuedPrompt(id: String) {
         app?.items.removeAll { $0.id == id }
     }

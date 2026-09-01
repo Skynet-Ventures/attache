@@ -672,6 +672,10 @@ final class BridgeEngine: Engine {
             app.approvalMode = parsed
         }
         if let fast = state["fastModeActive"]?.boolValue { app.fastModeActive = fast }
+        if let thinking = state["thinkingLevel"]?.stringValue,
+           let parsed = ThinkingLevel(rawValue: thinking) {
+            app.sessionThinking = parsed
+        }
         if let steering = state["steeringMode"]?.stringValue,
            let parsed = QueueSteeringMode(rawValue: steering) {
             app.steeringMode = parsed
@@ -1671,6 +1675,24 @@ final class BridgeEngine: Engine {
             try? await client.send("set_thinking_level", [
                 "sessionId": sessionId, "level": roleModel.thinking.rawValue,
             ])
+        }
+    }
+
+    func setThinkingLevel(_ level: ThinkingLevel) {
+        Task { [weak self] in
+            guard let self, let client = self.client, let app = self.app,
+                  let sessionId = app.sessionId else { return }
+            let previous = app.sessionThinking
+            app.sessionThinking = level
+            do {
+                try await client.send("set_thinking_level", [
+                    "sessionId": sessionId, "level": level.rawValue,
+                ])
+                app.append(.steer("thinking → \(level.rawValue)"))
+            } catch {
+                app.sessionThinking = previous
+                app.append(.notice("thinking-level change failed: \((error as? BridgeError)?.message ?? "error")"))
+            }
         }
     }
 
